@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 namespace mods::packages {
 inline constexpr const char* kGameId="wwhd-usa";
@@ -16,6 +17,7 @@ struct Option {
 struct View {
     std::string id,name,version,author,description,kind,reason,status;
     bool enabled=false,active=false,compatible=false;
+    bool native_confirmed=true; // false: native code the player has not confirmed (for this library build)
     std::vector<Option> options;
     std::vector<std::string> dependencies,conflicts;
 };
@@ -24,7 +26,13 @@ std::string directory();
 std::vector<View> list();
 bool install(const std::string& source,std::string& error); // directory or ZIP/.wwhdmod
 bool remove(const std::string& id,std::string& error);
-bool enable(const std::string& id,bool on,std::string& error);
+bool enable(const std::string& id,bool on,std::string& error); // refuses unconfirmed native code
+// Native packages that enabling `id` would newly turn on (itself and disabled dependencies) whose
+// code the player has not confirmed yet, as {id, name}. Empty: enable() needs no confirmation.
+std::vector<std::pair<std::string,std::string>> unconfirmed_native(const std::string& id);
+// One-time player acknowledgement that a native package may run: remembered in profiles.json for
+// this package ID and the SHA-256 of its current platform library (a changed library asks again).
+bool confirm_native(const std::string& id,std::string& error);
 bool configure(const std::string& id,const std::string& option,const json::Value& value,std::string& error);
 void disable_all();
 std::vector<std::string> profiles();

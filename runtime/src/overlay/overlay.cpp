@@ -63,6 +63,7 @@ const bool g_no_host = getenv("WWHD_NO_HOST_INPUT") != nullptr;  // test runs ig
 // ... except keys a test posts itself (WWHD_TEST_POST_KEYS, gfx/input.mm; the hidden test window never
 // has the user's keyboard)
 const bool g_no_host_keys = g_no_host && !getenv("WWHD_TEST_POST_KEYS");
+bool g_pad_b_used = false;  // B answered a dialog this frame: it does not also close the menu
 
 // input events from the host's main thread, replayed into ImGui on the render thread
 struct Event {
@@ -659,9 +660,57 @@ void tab_display() {
     }
 }
 
+// The one-time native code confirmation (packages.h confirm_native): asked before enable() for each
+// native package the player has not confirmed; Cancel (also B) leaves everything disabled.
+struct NativeConfirm {
+    std::string id, name;                                // the package the player is enabling
+    std::vector<std::pair<std::string, std::string>> native;  // what needs confirming (it, dependencies)
+    bool open_now = false;
+};
+void native_confirm_dialog(NativeConfirm& c, std::string& error) {
+    using namespace mods::packages;
+    const char* title = "Native code##native_confirm";
+    if (c.open_now) { ImGui::OpenPopup(title); c.open_now = false; }
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) return;
+    bool answered = c.native.empty(), accept = false;
+    if (!answered) {
+        std::string names;
+        for (size_t i = 0; i < c.native.size(); i++)
+            names += (i == 0 ? "" : i + 1 == c.native.size() ? " and " : ", ") + c.native[i].second;
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28);
+        ImGui::TextWrapped("%s %s native code. It runs with the game's full permissions and can do anything a program "
+                           "on your computer can. Only enable mods from sources you trust.",
+                           names.c_str(), c.native.size() == 1 ? "contains" : "contain");
+        if (c.native.size() > 1 || c.native[0].first != c.id) note("Enabling %s also enables these packages.", c.name.c_str());
+        note("You won't be asked again for this version of the mod.");
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing();
+        accept = ImGui::Button("Enable", ImVec2(120, 0));
+        ImGui::SameLine();
+        answered = ImGui::Button("Cancel", ImVec2(120, 0)) || accept;
+        ImGui::SetItemDefaultFocus();  // keyboard and controller start on Cancel
+        if (controller_pressed(input_map::kPadB)) { answered = true; accept = false; g_pad_b_used = true; }
+    }
+    if (accept) {
+        bool ok = true;
+        for (const auto& [id, name] : c.native) ok = ok && confirm_native(id, error);
+        if (ok) enable(c.id, true, error);
+    }
+    if (answered) {
+        c = NativeConfirm{};
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
 void package_controls() {
     using namespace mods::packages;
     static std::string error;
+    static NativeConfirm confirm;
+    // debug: WWHD_TEST_MOD_ENABLE=<package id> ticks that package's checkbox once in test runs (the
+    // confirmation then shows for unconfirmed native code)
+    static const char* test_enable = g_no_host ? getenv("WWHD_TEST_MOD_ENABLE") : nullptr;
     static char source[1024] = {}, new_profile[65] = {};
     static std::mutex picker_mutex;
     static std::string picked;
@@ -714,13 +763,22 @@ void package_controls() {
     for (const auto& mod : installed) {
         ImGui::PushID(mod.id.c_str());
         bool on = mod.enabled;
-        if (ImGui::Checkbox("##package_enabled", &on)) enable(mod.id, on, error);
+        bool toggled = ImGui::Checkbox("##package_enabled", &on);
+        if (test_enable && mod.id == test_enable) { toggled = on = true; test_enable = nullptr; }
+        if (toggled) {
+            auto native = on ? unconfirmed_native(mod.id) : decltype(unconfirmed_native(mod.id)){};
+            if (native.empty()) enable(mod.id, on, error);
+            else confirm = {mod.id, mod.name, std::move(native), true};
+        }
         ImGui::SameLine();
         if (installed.size() == 1) ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         bool expanded = ImGui::TreeNode("details", "%s · %s", mod.name.c_str(), mod.version.c_str());
         if (expanded) {
             note("%s · %s", mod.kind == "native" ? "Native mod" : "Built-in settings preset",
                  mod.active ? "Active" : mod.enabled ? "Waiting for game update" : "Disabled");
+            if (mod.kind == "native" && mod.compatible)
+                note(mod.native_confirmed ? "Runs native code with the game's permissions (you confirmed this version)."
+                                          : "Runs native code with the game's permissions. Enabling it asks you to confirm first.");
             if (!mod.author.empty()) note("By %s", mod.author.c_str());
             ImGui::TextWrapped("%s", mod.description.c_str());
             if (!mod.reason.empty()) ImGui::TextWrapped("%s", mod.reason.c_str());
@@ -759,6 +817,7 @@ void package_controls() {
         }
         ImGui::PopID();
     }
+    native_confirm_dialog(confirm, error);
 }
 
 void tab_mods() {
@@ -1178,7 +1237,7 @@ void settings_window() {
     }
     if (ImGui::Begin("Wind Waker HD  -  Settings", &open, fl)) {
         // L / R on a controller switch tabs
-        if (U.cap_action < 0) {
+        if (U.cap_action < 0 && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId)) {
             if (controller_pressed(input_map::kPadLB)) U.select_tab = (U.tab + kTabs - 1) % kTabs;
             if (controller_pressed(input_map::kPadRB)) U.select_tab = (U.tab + 1) % kTabs;
         }
@@ -1208,8 +1267,9 @@ void settings_window() {
     ImGui::End();
     // B (not while choosing an input or in a list) or the close button closes the menu
     if (!open) set_open(false);
-    if (U.cap_action < 0 && controller_pressed(input_map::kPadB) && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+    if (U.cap_action < 0 && controller_pressed(input_map::kPadB) && !g_pad_b_used && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
         set_open(false);
+    g_pad_b_used = false;
 }
 
 }  // namespace

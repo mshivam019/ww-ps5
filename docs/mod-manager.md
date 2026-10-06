@@ -45,6 +45,34 @@ package and wait for its next game update before updating or removing it.
 Reinstall the same ID while disabled to update; configuration is preserved by
 ID. Refresh discovers manual folder changes when all packages are disabled.
 
+### Native code confirmation
+
+Enabling a package with native code (`kind: native`) first shows a confirmation:
+"<Mod name> contains native code. It runs with the game's full permissions and
+can do anything a program on your computer can. Only enable mods from sources
+you trust." **Enable** confirms and enables it; **Cancel** (the default button,
+also B on a controller) leaves it disabled. If enabling a package would also
+enable native dependencies that are not confirmed yet, the one dialog names all
+of them. The dialog works with the mouse, the keyboard (Tab/arrows, Enter or
+Space) and a controller (D-pad, A, B), on the AppKit and the SDL host.
+
+The confirmation is asked once per package and native library: it is stored in
+`profiles.json` as `native_trust`, mapping the package ID to the SHA-256 of the
+package's library for this platform (the file named in `binaries`). It applies
+to every profile. Installing an update whose library differs asks again;
+removing a package forgets its confirmation. Only that one library is
+fingerprinted; anything the library itself loads from its folder is not.
+Built-in mods and settings presets never ask.
+
+Native code is never loaded without a matching confirmation, also when a
+profile switch, an older `profiles.json` or an updated library would enable it.
+Such a package stays unloaded and is switched off in that profile, and the tab
+shows "Not loaded: it contains native code you have not confirmed. Enable it
+again to review." Ticking it again shows the confirmation. Packages that depend
+on it report that a dependency failed to load, as for any failed load. The
+manager API enforces this as well (`enable()` refuses unconfirmed native code;
+`unconfirmed_native()` and `confirm_native()` serve the dialog).
+
 Profiles save package toggles/configuration and built-in choices. Clone current
 creates another profile; select it in Active profile. Switch away before deleting
 a profile. Disable all covers both built-ins and external packages. Explicit
@@ -55,6 +83,13 @@ package files, and `profiles.json`. `WWHD_MOD_MANAGER_DIR` selects isolated
 storage. `WWHD_NO_HOST_INPUT` skips user preferences and package storage unless
 an explicit manager directory is supplied for a test. Game assets and saves
 are never installed or redistributed by this manager.
+
+Test aids (only with `WWHD_NO_HOST_INPUT`): `WWHD_TEST_TRUST_NATIVE_MODS=id[,id…]`
+treats those native packages as confirmed without writing `native_trust`; it
+also needs an explicit `WWHD_MOD_MANAGER_DIR`, so it never applies to a player's
+storage. `WWHD_TEST_MOD_ENABLE=<id>` ticks that package's checkbox once when the
+Mods tab is drawn (with `WWHD_TEST_OVERLAY=open:mods`), which shows the
+confirmation for an unconfirmed native package.
 
 ## Native mod SDK v1
 
@@ -70,7 +105,8 @@ start asynchronous guest-memory work; stop any owned workers before unloading.
 Host services provide typed option access, a status line, logging and bounded
 reads/writes of guest data RAM (MEM2, MEM1 and foreground bucket, maximum 1 MiB
 per request). Bytes use guest big-endian order. Native packages execute trusted
-host code with the same permissions as the game. Unload callbacks run when a
+host code with the same permissions as the game; the player confirms each
+native library once before it loads (see Native code confirmation). Unload callbacks run when a
 mod is disabled/profile-switched, before its library closes; process termination
 is not a guaranteed cleanup callback.
 
@@ -113,4 +149,8 @@ The standalone `mod_manager` CTest checks defaults, saved settings, invalid
 values, explicit environment precedence, persistence and test isolation.
 `mod_packages` loads an independently compiled fixture library and exercises
 install, profiles, missing dependencies, live configuration, disable/unload and
-removal.
+removal. It also checks the native confirmation: an unconfirmed library is not
+enabled or loaded, a confirmed one loads in a second process on the same storage
+without asking, a changed library asks again (also through a profile switch),
+removal forgets the confirmation, settings presets never ask, and the test aid
+applies without writing to `profiles.json`.
