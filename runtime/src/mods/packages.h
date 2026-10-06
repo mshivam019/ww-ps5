@@ -7,7 +7,7 @@
 #include <vector>
 namespace mods::packages {
 inline constexpr const char* kGameId="wwhd-usa";
-inline constexpr const char* kManagerVersion="1.0.0";
+inline constexpr const char* kManagerVersion="1.2.0";
 struct Option {
     std::string id,name,description,type;
     json::Value value,default_value;
@@ -16,7 +16,7 @@ struct Option {
 };
 struct View {
     std::string id,name,version,author,description,kind,reason,status;
-    bool enabled=false,active=false,compatible=false;
+    bool enabled=false,active=false,compatible=false,restart_required=false,pending_restart=false;
     bool native_confirmed=true; // false: native code the player has not confirmed (for this library build)
     std::vector<Option> options;
     std::vector<std::string> dependencies,conflicts;

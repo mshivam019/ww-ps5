@@ -22,6 +22,7 @@
 #include <thread>
 
 #include "gfx/renderer.h"
+#include "mods/cemu_pack.h"
 #include "gx2/gx2.h"
 #include "recomp_table.h"
 #include "crash_addr.h"
@@ -319,6 +320,7 @@ int main(int argc, char** argv) {
     }
 #endif
     mods::manager::load_saved();  // player choices, before the game starts
+    mods::cemu::set_vulkan(render::requested()==render::Api::Vulkan);
     mods::packages::initialize();
     mem::init();
     auto valid_mod_memory = [](uint32_t address, size_t size) {
@@ -358,6 +360,7 @@ int main(int argc, char** argv) {
     st32(argv_arr, arg0);
     // the game runs on its own threads; the process main thread belongs to the window system
     render::init();
+    mods::cemu::set_vulkan(render::active()==render::Api::Vulkan);
     if (warm_shaders) {
         // compile the shader head start once (fills the macOS Metal shader cache), then quit
 #ifdef WWHD_HAS_METAL

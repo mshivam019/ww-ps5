@@ -742,7 +742,7 @@ void package_controls() {
     ImGui::EndDisabled();
     note("Your active profile is protected from deletion.");
     heading("Installed packages");
-    note("Install a local .wwhdmod ZIP or a folder containing manifest.json.");
+    note("Install a local package, a content/ mod folder or ZIP, or a replacement .pack file.");
     if (ImGui::Button("Choose package…")) hostui::choose_mod_source(false, [](std::string path) {
         std::lock_guard guard(picker_mutex); picked = std::move(path);
     });
@@ -774,8 +774,8 @@ void package_controls() {
         if (installed.size() == 1) ImGui::SetNextItemOpen(true, ImGuiCond_Once);
         bool expanded = ImGui::TreeNode("details", "%s · %s", mod.name.c_str(), mod.version.c_str());
         if (expanded) {
-            note("%s · %s", mod.kind == "native" ? "Native mod" : "Built-in settings preset",
-                 mod.active ? "Active" : mod.enabled ? "Waiting for game update" : "Disabled");
+            note("%s · %s", mod.kind == "native" ? "Native mod" : mod.kind == "cemu" ? "Cemu graphics / shader pack" : mod.kind == "content" ? "Model / texture / UI replacement" : "Built-in settings preset",
+                 mod.pending_restart ? "Restart required" : mod.active ? "Active" : mod.enabled ? "Waiting for game update" : "Disabled");
             if (mod.kind == "native" && mod.compatible)
                 note(mod.native_confirmed ? "Runs native code with the game's permissions (you confirmed this version)."
                                           : "Runs native code with the game's permissions. Enabling it asks you to confirm first.");
@@ -810,6 +810,7 @@ void package_controls() {
                 if (!option.description.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", option.description.c_str());
                 ImGui::PopID();
             }
+            if(mod.restart_required) note("Changes apply on the next game start. Active files stay loaded until exit.");
             ImGui::BeginDisabled(mod.enabled || mod.active);
             if (ImGui::Button("Remove package")) remove(mod.id, error);
             ImGui::EndDisabled();

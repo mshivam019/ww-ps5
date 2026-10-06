@@ -1,5 +1,8 @@
 // Real Latte microcode -> Cemu GLSL -> SPIR-V for the Vulkan backend.
 #include "shaders.h"
+#include "mods/cemu_pack.h"
+#include "mods/shader_interface.h"
+#include "graphic_pack_hash.h"
 #include "exact_state_memo.h"
 #include "Cafe/HW/Latte/Core/FetchShader.h"
 #include "Cafe/HW/Latte/Core/LatteShader.h"
@@ -372,6 +375,7 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
     if (!address || !size || size > 0x100000 || uint64_t(address) + size > 0x100000000ull) return nullptr;
     uint64_t base = program_hash(address, size, frame) ^ (vertex ? 0x1111 : 0x2222);
     uint64_t key = state_hash(regs, base, vertex, cacheLast) ^ (vertex ? fsKey * 31 : 0);
+    if(vertex&&mods::cemu::has_shaders())key^=uint64_t(regs[REGADDR::PA_CL_VTE_CNTL])*0x9E3779B97F4A7C15ull;
     if (auto it = shaders.find(key); it != shaders.end()) {
         ++stats.variantHits;
         return remember(it->second.get());
@@ -399,10 +403,16 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
     if (vertex && !fetch) { shader->error = "vertex shader has no fetch program"; return shader; }
     LatteShader_UpdatePSInputs(const_cast<uint32_t*>(regs));
     LatteDecompilerOptions options;
+    uint64_t packBase=0;
+    if(mods::cemu::has_shaders()) {
+        packBase=cemu_pack_hash::base(ppc_ptr(address),size,regs,vertex,fetch);
+        options.legacyGraphicPackUniforms=!vertex&&mods::cemu::legacy_pixel_uniforms(packBase);
+    }
+    const uint64_t decompilerBase=mods::cemu::has_shaders()?packBase:base;
     LatteDecompilerOutput_t output{};
-    if (vertex) LatteDecompiler_DecompileVertexShader(base, const_cast<uint32_t*>(regs),
+    if (vertex) LatteDecompiler_DecompileVertexShader(decompilerBase, const_cast<uint32_t*>(regs),
         ppc_ptr(address), size, fetch, options, &output);
-    else LatteDecompiler_DecompilePixelShader(base, const_cast<uint32_t*>(regs),
+    else LatteDecompiler_DecompilePixelShader(decompilerBase, const_cast<uint32_t*>(regs),
         ppc_ptr(address), size, options, &output);
     if (!output.shader || output.shader->hasError || !output.shader->strBuf_shaderSource) {
         free_decompiler(output.shader); shader->error = "Latte GLSL translation failed"; return shader;
@@ -418,6 +428,24 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
         auto main = shader->glsl.find("void main(");
         if (main != std::string::npos)
             shader->glsl.insert(main, "invariant gl_Position;\n");
+    }
+    if(mods::cemu::has_shaders()) {
+        auto packAux=cemu_pack_hash::auxiliary(*shader->dec,regs,vertex);
+        auto custom=mods::cemu::shader_source(packBase,packAux,vertex);
+        if(!custom.empty()) {
+            std::string error;
+            auto replacement=compile_glsl(custom,vertex,&error);
+            std::string originalError;
+            auto original=compile_glsl(shader->glsl,vertex,&originalError);
+            bool accepted=!replacement.empty()&&!original.empty()&&
+                mods::cemu::compatible_shader_interface(original,replacement,error);
+            if(accepted)shader->glsl=std::move(custom);
+            if(error.empty()&&!accepted)error=originalError.empty()?"Shader compilation failed":originalError;
+            mods::cemu::report_shader(packBase,packAux,vertex,accepted,error);
+            fprintf(stderr,"[cemu-pack] %016llx_%016llx_%s %s%s\n",
+                (unsigned long long)packBase,(unsigned long long)packAux,vertex?"vs":"ps",
+                accepted?"applied":"rejected: ",accepted?"":error.c_str());
+        }
     }
     stats.decompileNs += std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now()-started).count();
