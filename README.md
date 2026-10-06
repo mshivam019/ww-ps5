@@ -10,6 +10,20 @@ How it works and how it differs from running the game in Cemu: [docs/how-it-work
 
 ## What's new in this update
 
+### v0.2.3
+
+- **Mod manager** (settings overlay → **Mods**): the built-in mods (direct and mouse camera,
+  first-person shortcut, wall climbing, quick doors, fast scenes) in one searchable list, plus
+  **installable mod packages** from a folder or a `.wwhdmod` ZIP, with profiles, dependencies and
+  per-mod options. Everything starts off; nothing from a package loads until you enable it.
+  - **Content mods** replace game files without touching your game folder.
+  - **Cemu graphics packs** (`rules.txt`) can be imported, with their presets and resolution rules;
+    shader packs need the Vulkan renderer. Code patches from Cemu packs are not supported.
+  - **Native mods** (packages with their own compiled code) ask for a one-time confirmation before
+    they are enabled, because they run with the game's full permissions; only enable mods from
+    sources you trust.
+  See `docs/mod-manager.md` for the package format and the mod SDK.
+
 ### v0.2.2
 
 - **Controller rumble fixed** (issue #35): rumble now follows the game's patterns exactly and always
