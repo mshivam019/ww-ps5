@@ -136,7 +136,11 @@ int main(int argc, char** argv) {
     assert(enable("fixture",false,error));frame(5);assert(!find().active);
     // Confirmed: a new process loads it from the saved profile without asking again.
     assert(enable("fixture",true,error));frame(7);assert(find().active);
-    assert(std::system(("\""+std::string(argv[0])+"\" --restart \""+storage.string()+"\"").c_str())==0);
+    std::string restart="\""+std::string(argv[0])+"\" --restart \""+storage.string()+"\"";
+#ifdef _WIN32
+    restart="\""+restart+"\"";  // cmd.exe /c drops the outer quotes of a line that starts with one
+#endif
+    assert(std::system(restart.c_str())==0);
     // That process disabled it; this one keeps its own view until told, so follow the saved state.
     assert(enable("fixture",false,error));frame(8);assert(!find().active);
     // A changed library under the same ID asks again, including when a profile switch would load it.
