@@ -1,0 +1,27 @@
+{
+  "windows-x86_64": {
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-x86_64.zip",
+    "sha256": "e3ad77d117a4bea19a7a3b333341824d79a5a371004a10e25b8504e7b3047666",
+    "directory": "llvm-mingw-20260922-ucrt-x86_64"
+  },
+  "windows-arm64": {
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-aarch64.zip",
+    "sha256": "a317514a7a63badd692032c0c2b8e165f630bbaebbe7a3254348051f43a64949",
+    "directory": "llvm-mingw-20260922-ucrt-aarch64"
+  },
+  "macos": {
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-macos-universal.tar.xz",
+    "sha256": "52e5f5a7b131021d0c39a37a38fa380a1da7885cd04bd61afd0cd4ecfb8bc1f3",
+    "directory": "llvm-mingw-20260922-ucrt-macos-universal"
+  },
+  "linux-x86_64": {
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-ubuntu-22.04-x86_64.tar.xz",
+    "sha256": "bb7bb7654b33d5aa8712acb837c963b2e0c56352560c76105270a3268c665c21",
+    "directory": "llvm-mingw-20260922-ucrt-ubuntu-22.04-x86_64"
+  },
+  "linux-arm64": {
+    "url": "https://github.com/mstorsjo/llvm-mingw/releases/download/20260922/llvm-mingw-20260922-ucrt-ubuntu-22.04-aarch64.tar.xz",
+    "sha256": "07d21263c56bfe9a713db6fdb3f7434bf4c121a005e40397d3b4c0170fb06769",
+    "directory": "llvm-mingw-20260922-ucrt-ubuntu-22.04-aarch64"
+  }
+}

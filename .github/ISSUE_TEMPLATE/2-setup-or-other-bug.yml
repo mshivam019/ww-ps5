@@ -1,0 +1,25 @@
+name: Setup or installation bug
+description: Report a problem preparing or installing the PS5 title.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Release version
+      placeholder: v0.1.1
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Computer OS and processor
+      placeholder: Windows 11 x86-64, macOS ARM64, or Linux x86-64
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include the step that failed and the error message. Setup details are in build/setup.log. Do not attach game files or keys.
+    validations:
+      required: true

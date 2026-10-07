@@ -1,0 +1,23 @@
+name: PS5 gameplay bug
+description: Report a problem while playing Wind Waker HD on PS5.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Release and PS5 firmware
+      placeholder: v0.1.1, firmware 9.00
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include steps to reproduce and what you expected. Mention any enabled mods.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details
+      description: Controller type, game language and relevant error messages. Do not attach game files or keys.

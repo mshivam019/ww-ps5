@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Upload a native title over FTP, preserving existing configuration and saves."""
+import argparse
+import ftplib
+import json
+import console_control
+from pathlib import Path
+
+TITLE = 'PPSA99641'
+
+
+def directory(ftp, path):
+    current = ''
+    for part in path.split('/'):
+        if not part:
+            continue
+        current += '/' + part
+        try:
+            ftp.mkd(current)
+        except ftplib.error_perm:
+            ftp.cwd(current)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--src', type=Path, required=True)
+    parser.add_argument('--console', required=True)
+    parser.add_argument('--ftp-port', type=int, default=2121)
+    parser.add_argument('--control-port', type=int, default=9114)
+    parser.add_argument('--install-root', default='/mnt/ext1/etaHEN/games')
+    args = parser.parse_args()
+    if not (args.src / 'eboot.bin').is_file():
+        parser.error('--src must be the extracted PPSA99641 folder')
+    console_control.HOST = args.console
+    console_control.PORT = args.control_port
+    processes = json.loads(console_control.call(162, {}))['procs']
+    if any(p.get('title_id') == TITLE for p in processes):
+        raise RuntimeError('Wind Waker HD is running. Save and close it before installing.')
+    print('Title is closed. This helper does not register or launch it.')
+    base = args.install_root.rstrip('/') + '/' + TITLE
+    with ftplib.FTP() as ftp:
+        ftp.connect(args.console, args.ftp_port, timeout=60)
+        ftp.login()
+        ftp.voidcmd('TYPE I')
+        for source in sorted(args.src.rglob('*'), key=lambda p: (p.name == 'eboot.bin', str(p))):
+            if source.is_symlink():
+                raise ValueError(f'Symbolic link in title: {source}')
+            if not source.is_file():
+                continue
+            relative = source.relative_to(args.src).as_posix()
+            if relative.startswith('user/') and not relative.startswith('user/ModManager/Mods/') and relative != 'user/ModManager/profiles.json':
+                raise ValueError('The installer must not upload user data')
+            target = base + '/' + relative
+            directory(ftp, target.rsplit('/', 1)[0])
+            if relative == 'user/ModManager/profiles.json':
+                try:
+                    ftp.size(target)
+                    print('Preserved existing mod profile')
+                    continue
+                except ftplib.error_perm as error:
+                    if not str(error).startswith('550'):
+                        raise
+            with source.open('rb') as stream:
+                ftp.storbinary('STOR ' + target + '.next', stream, 262144)
+            # FTP exposes SELF files decoded as ELF. Query stored size through
+            # PS5 Upload instead so executable verification uses the raw file.
+            parent, name = (target + '.next').rsplit('/', 1)
+            entries = json.loads(console_control.call(36, {'path': parent}))['entries']
+            stored = next((e['size'] for e in entries if e['name'] == name), None)
+            if stored != source.stat().st_size:
+                raise RuntimeError(f'Transfer size mismatch: {relative}')
+            ftp.rename(target + '.next', target)
+            print('Uploaded', relative)
+    print('Register/mount', base, 'with your native-title launcher or PS5 Upload.')
+
+
+if __name__ == '__main__':
+    main()
