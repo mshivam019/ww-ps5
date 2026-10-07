@@ -763,7 +763,13 @@ void wait_idle() {
 }
 void with_autorelease_pool(void (*fn)()) { host::with_autorelease_pool(fn); }
 uint64_t frames_completed() { return R.completed.load(); }
-uint64_t frame_count() { return std::atomic_ref<uint64_t>(R.frame).load(); }
+uint64_t frame_count() {
+#ifdef __PROSPERO__
+  return __atomic_load_n(&R.frame, __ATOMIC_SEQ_CST);
+#else
+  return std::atomic_ref<uint64_t>(R.frame).load();
+#endif
+}
 static bool has_extension(const std::vector<VkExtensionProperties> &es,
                           const char *name) {
   return std::any_of(es.begin(), es.end(),
@@ -1317,7 +1323,11 @@ void swap() {
     }
   }
   set_present_plan(nullptr);
+#ifdef __PROSPERO__
+  __atomic_fetch_add(&R.frame, uint64_t(1), __ATOMIC_SEQ_CST);
+#else
   std::atomic_ref<uint64_t>(R.frame).fetch_add(1);
+#endif
   R.completed = R.frame;
   report_gpu_timestamps();
   perf_hint::frame_done();

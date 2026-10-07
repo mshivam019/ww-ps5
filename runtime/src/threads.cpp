@@ -452,7 +452,7 @@ __attribute__((noinline)) static void try_entry_park(HostThread* t, Cpu* c) {
         if (!g_frozen || t == g_frz_owner) return;
     }
     if (mode == 2 && (!t->has_target || c->r[1] != t->tgt_r1 || c->lr != t->tgt_lr)) return;
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__PROSPERO__)
     // Entry parking requires host-frame symbol classification; Windows stack unwinding needs
     // a dedicated implementation. Ordinary waits remain saveable; never guess a safe frame.
     return;

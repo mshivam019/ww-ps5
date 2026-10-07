@@ -54,6 +54,8 @@ inline void set_thread_name(const char* name) {
  using SetDescription=HRESULT(WINAPI*)(HANDLE,PCWSTR);
  auto f=(SetDescription)GetProcAddress(GetModuleHandleW(L"Kernel32.dll"),"SetThreadDescription");
  if(f) { std::wstring text; for(unsigned char c:thread_label)text.push_back(c); f(GetCurrentThread(),text.c_str()); }
+#elif defined(__PROSPERO__)
+ // Keep the label for diagnostics; Linux pthread_setname_np is unavailable.
 #else
  pthread_setname_np(pthread_self(),thread_label.substr(0,15).c_str());
 #endif
@@ -77,6 +79,8 @@ inline void boost_thread_priority() {
   PowerThrottling state{1 /* THREAD_POWER_THROTTLING_CURRENT_VERSION */,1 /* EXECUTION_SPEED */,0 /* off */};
   set_info(GetCurrentThread(),3 /* ThreadPowerThrottling */,&state,sizeof state);
  }
+#elif defined(__PROSPERO__)
+ // Preserve the native scheduler priority during bring-up.
 #else
  setpriority(PRIO_PROCESS,(id_t)syscall(SYS_gettid),-5);  // EPERM without CAP_SYS_NICE: ignored
 #endif

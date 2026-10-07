@@ -1,3 +1,14 @@
+# Wind Waker HD for PS5
+
+Native PS5 port work is underway. The game image has been extracted and validated,
+and the PS5 runtime compiles. There is no playable PS5 release yet.
+See [PS5 build instructions and status](ps5/README.md).
+
+Based on [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp).
+The upstream documentation below describes its desktop/mobile versions.
+
+---
+
 # The Legend of Zelda: The Wind Waker HD — native port (macOS, Linux, Windows, Android)
 
 A static recompilation of the Wii U version (USA) that runs natively on **macOS** (Apple Silicon),

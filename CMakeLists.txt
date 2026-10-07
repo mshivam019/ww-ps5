@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(wwhd_recomp C CXX)
+if(PS5)
+  include(ps5/Platform.cmake)
+endif()
 # Renderers compiled into the executable:
 #   BOTH   (macOS default) Metal and Vulkan (MoltenVK) in one app; Graphics > Renderer picks one at start
 #   METAL  Metal only (macOS)
@@ -153,7 +156,10 @@ if(WWHD_SDL_HOST)
   endif()
 endif()
 set_source_files_properties(${GX2_SOURCES} ${GFX_SOURCES} PROPERTIES COMPILE_OPTIONS "-include;${CEMU_DIR}/cemu_shim.h")
-if(ANDROID)
+if(PS5)
+  # Compile the runtime separately; the native RADV recipe will own the final link.
+  add_library(wwhd STATIC ${RUNTIME_SOURCES} ${GX2_SOURCES} ${GFX_SOURCES})
+elseif(ANDROID)
   # Android: SDLActivity loads the game as libmain.so and calls its SDL_main (android/)
   add_library(wwhd SHARED ${RUNTIME_SOURCES} ${GX2_SOURCES} ${GFX_SOURCES} ${MOD_GFX_SOURCES} ${IMGUI_METAL})
   set_target_properties(wwhd PROPERTIES OUTPUT_NAME main)

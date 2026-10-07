@@ -1,3 +1,4 @@
+#include "platform/host.h"
 #include <thread>
 #include <chrono>
 #include <atomic>
@@ -375,7 +376,7 @@ void wp_handler(int sig, siginfo_t* si, void* uc) {
     uintptr_t a = (uintptr_t)si->si_addr;
     if (a >= g_wp_lo && a < g_wp_hi) {
         char name[64] = "";
-        pthread_getname_np(pthread_self(), name, sizeof name);
+        host::get_thread_name(name, sizeof name);
         Cpu* c = threads::current();
         char buf[200];
         int n = snprintf(buf, sizeof buf, "[wp] write %08X by \"%s\" guest lr=%08X\n", (unsigned)(a - (uintptr_t)PPC_MEM_BASE), name,
@@ -444,7 +445,7 @@ extern "C" void hook_02753D6C(Cpu* c) {
         if (seen.insert({h, t}).second) {
             char name[64] = "";
 #ifndef _WIN32
-            pthread_getname_np(pthread_self(), name, sizeof name);
+            host::get_thread_name(name, sizeof name);
 #endif
             LOG("[heaplog] heap %08X (flags %08X, %08X..%08X) first alloc by \"%s\" (%08X) size %X lr %08X", h, ld32(h + 0x90),
                 ld32(h + 0x20), ld32(h + 0x20) + ld32(h + 0x24), name, t, c->r[4], c->lr);
