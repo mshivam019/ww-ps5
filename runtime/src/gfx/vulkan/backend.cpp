@@ -4,6 +4,9 @@
 #if defined(__APPLE__) && !defined(WWHD_SDL_HOST)
 #define VK_USE_PLATFORM_METAL_EXT  // VK_EXT_metal_surface: AppKit views' CAMetalLayers
 #endif
+#ifdef __PROSPERO__
+#include "../../../../ps5/native/display.h"
+#endif
 #include "backend.h"
 #include "present.h"
 #include "gfx/display.h"
@@ -1989,6 +1992,9 @@ void init() {
     throw std::runtime_error(SDL_GetError());
   // the Vulkan loader (vulkan-1.dll, libvulkan.so.1), loaded here rather than imported (loader.h); the
   // windows below use the same one
+#ifdef __PROSPERO__
+  load_global_functions(ps5ww::instance_proc());
+#else
   if (!SDL_Vulkan_LoadLibrary(nullptr))
     throw std::runtime_error(std::string("Vulkan is not installed on this computer: the Vulkan runtime "
 #ifdef _WIN32
@@ -1996,7 +2002,10 @@ void init() {
 #endif
                                          "could not be loaded (") + SDL_GetError() + ").\n\n" + kUpdateDriver);
   load_global_functions(reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr()));
-#ifdef __ANDROID__
+#endif
+#ifdef __PROSPERO__
+  const SDL_WindowFlags windowFlags = 0;
+#elif defined(__ANDROID__)
   SDL_AddEventWatch(lifecycle_watch, nullptr);
   const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN;
 #else
@@ -2008,7 +2017,7 @@ void init() {
   R.tv.window = SDL_CreateWindow("Wind Waker HD — Vulkan", 1280, 720, windowFlags);
   if (!R.tv.window)
     throw std::runtime_error(SDL_GetError());
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(__PROSPERO__)
   // one surface: the GamePad picture is drawn into it (display_modes.h: picture-in-picture, GamePad
   // only), never a window of its own
 #else
@@ -2026,7 +2035,13 @@ void init() {
     R.tv.visible = R.drc.visible = false;  // no drawables: pictures only reach frame / present dumps
   set_window_icons();
   uint32_t n;
+#ifdef __PROSPERO__
+  const char* const extensions[] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_DISPLAY_EXTENSION_NAME};
+  const char* const* se = extensions;
+  n = 2;
+#else
   const char *const *se = SDL_Vulkan_GetInstanceExtensions(&n);
+#endif
   if (!se)
     throw std::runtime_error(SDL_GetError());
   for (Screen *s : {&R.tv, &R.drc})
@@ -2038,12 +2053,21 @@ void init() {
       s->height = height;
     }
   init_device(std::vector<const char *>(se, se + n), [] {
+#ifdef __PROSPERO__
+    uint32_t width = 0, height = 0;
+    R.tv.surface = ps5ww::display_surface(R.instance, width, height);
+    R.tv.width = width;
+    R.tv.height = height;
+    SDL_SetWindowSize(R.tv.window, int(width), int(height));
+    LOG("[vulkan] native PS5 display %ux%u", width, height);
+#else
     if (!SDL_Vulkan_CreateSurface(R.tv.window, R.instance, nullptr,
                                   &R.tv.surface))
       throw std::runtime_error(SDL_GetError());
     if (R.drc.window && !SDL_Vulkan_CreateSurface(R.drc.window, R.instance,
                                                   nullptr, &R.drc.surface))
       throw std::runtime_error(SDL_GetError());
+#endif
   });
   mods::mouse_init(R.tv.window);
   input::set_prompt_window(R.tv.window);

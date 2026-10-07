@@ -104,7 +104,9 @@ inline uintptr_t executable_base() {
 #endif
 }
 inline std::string executable_path() {
-#ifdef _WIN32
+#ifdef __PROSPERO__
+ return "/app0/eboot.bin";
+#elif defined(_WIN32)
  char path[32768]; DWORD n=GetModuleFileNameA(nullptr,path,sizeof path);return std::string(path,n);
 #elif !defined(__APPLE__)
  char path[4096];ssize_t n=readlink("/proc/self/exe",path,sizeof path);return n>0?std::string(path,n):std::string();
@@ -152,7 +154,9 @@ inline bool replace_file(const std::string& from,const std::string& to) {
 inline std::string exe_dir() {
  static const std::string dir=[]{
   std::string p;
-#if defined(__APPLE__)
+#if defined(__PROSPERO__)
+  p = "/app0/eboot.bin";
+#elif defined(__APPLE__)
   char buf[4096]; uint32_t n=sizeof buf;
   if(_NSGetExecutablePath(buf,&n)==0){ char real[PATH_MAX]; p=realpath(buf,real)?real:buf; }
 #elif defined(_WIN32)
@@ -179,6 +183,9 @@ inline const std::string& portable_user_dir() {
 }
 inline bool portable() { return !portable_user_dir().empty(); }
 inline std::string config_dir() {
+#ifdef __PROSPERO__
+ return "/app0/user";
+#endif
  if(portable()) return portable_user_dir();
 #ifdef __APPLE__
  const char* home=getenv("HOME");return std::string(home?home:".")+"/Library/Application Support/WWHD";

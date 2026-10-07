@@ -1,72 +1,82 @@
-# Wind Waker HD PS5 bring-up
+# Wind Waker HD PS5
 
-This is a port of ZeldaWWHDRecomp's Wii U Wind Waker HD recompilation.
-It is separate from BlueWake, which targets the GameCube game.
-No playable PS5 executable has been produced yet.
+Native PS5 port of [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp),
+using direct Vulkan through [Mihawk's PS5_Vulkan](https://github.com/mihawk-99/PS5_Vulkan).
+Separate title ID **PPSA99641**. This repository remains private.
 
-## Current checks
+The complete game executable compiles, links and passes the native SELF inspection
+and unresolved-import check. Console launch, gameplay, saves, audio and performance
+are still unverified. A successful build does not establish a playable port.
 
-- The supplied WUX header and sector index passed structural validation.
-- Disc-key decryption passed, game extraction completed, and the extracted RPX
-  matches upstream's supported USA version 0 SHA-256.
-- Actual game translation produced 39,713 functions in 78 generated C files.
-- The upstream host Vulkan smoke test passed upload, clear, blit, depth, triangle,
-  GPU readback and swapchain presentation on the Linux laptop.
-- Actual translated game code, PS5 runtime, GLSL/SPIR-V translator and renderer
-  compile as static archives.
-  Compiling an archive does not prove PS5 input, sound, graphics or gameplay.
+## Graphics and controls
 
-## Prepare private game files
+First-start targets: 3840x2160 output at approximately 60 Hz, 3x internal resolution
+(3840x2160 from the game's 1280x720), and paced 60 FPS interpolation. Game logic
+retains its normal 30 Hz clock. These are targets, not measured PS5 performance.
+Saved graphics options override the initial defaults, so resolution and interpolation
+can be changed in the controller-accessible settings overlay.
+
+DualSense Cross/Circle/Square/Triangle map to A/B/X/Y. Options maps to Start.
+Hold the touchpad button (Select) to open the upstream settings/mod menu.
+The GamePad screen is composited into the TV output rather than a desktop window.
+Controller input and audio use the native SDL3 PS5 backend used by Dusklight.
+Controller text entry uses the upstream overlay, not Sony's native keyboard.
+These mappings still need verification in this game on the console.
+
+## Build from your own USA Wii U version 0 dump
 
 Use Python with pycryptodome installed. Supply key file paths, not key bytes:
 
 ```sh
 python3 ps5/tools/prepare-game.py --image /path/to/game.wux --disc-key /path/to/game.key --common-key /path/to/common.key --output /path/outside/repository/game
 python3 tools/recomp/recomp.py /path/outside/repository/game/code/cking.rpx build/gen
+python3 ps5/tools/build-native.py --sdk /path/to/ps5-payload-sdk --sdl-build /path/to/sdl3-ps5 --sdl-source /path/to/SDL --vulkan /path/to/PS5_Vulkan
 ```
 
-Keep extracted files, generated code, keys, saves and captures outside Git.
-The existing build/ ignore covers generated code; keys and disc images are also ignored.
+Dependencies are recorded in `ps5/upstream.json`. The initial build reuses the
+verified Dusklight SDK, SDL3 and static RADV stack. `build-native.py` translates no
+game itself: prepare `build/gen` first. `compile-runtime.py` without `--generated`
+uses placeholders for compilation checks only. Never package those as a game.
 
-## Cross-compile
+## Private test package and installation
 
-The initial bring-up reuses the already built PS5 SDK, native SDL3 and RADV headers
-from our Dusklight development setup. These paths are supplied explicitly:
+Install Pillow in the Python environment used for packaging:
 
 ```sh
-python3 ps5/tools/compile-runtime.py --sdk /path/to/ps5-payload-sdk --sdl-build /path/to/sdl3-ps5 --vulkan-headers /path/to/radv-release/include --generated build/gen
+python3 ps5/tools/package-local.py --game /path/outside/repository/game --vulkan /path/to/PS5_Vulkan --output /path/outside/repository/test/PPSA99641
+python3 ps5/tools/package-local.py --output /path/outside/repository/test/PPSA99641 --validate-only
+python3 ps5/tools/install.py --src /path/outside/repository/test/PPSA99641 --console 192.168.50.6
 ```
 
-Omit --generated to compile placeholder game code for platform-only checks.
-The output is a static runtime archive, not an installable title. Do not try to
-launch placeholders as the game.
+The package contains your extracted game and generated executable. Keep it private;
+do not attach it to GitHub releases. The manifest records every file's size and
+SHA-256. The installer uses FTP port 2121, verifies stored sizes and preserves user
+data. Close Wind Waker HD before updating it. Register the installed folder
+`/mnt/ext1/etaHEN/games/PPSA99641` through PS5 Upload or your native-title launcher.
+FTP alone does not register or launch the game.
 
-## Next work
+Saves and settings are under the title's `user/` directory. Existing Dusklight,
+Morrowind and other titles are not replaced. Keys, game files, derived code, captures
+and saves must stay outside Git.
 
-1. Replace the SDL desktop Vulkan loader and surfaces with static RADV dispatch
-   and VK_KHR_display. Preserve GamePad picture-in-picture in the TV surface.
-2. Verify guest virtual-memory reservation, per-thread floating point state,
-   paths, crash handling and save handling on the PS5 platform layer.
-3. Link through the native RADV recipe, sign a separate title, and test renderer
-   initialization before game launch. Do not overwrite Dusklight's title.
-4. Verify opening, native/controller text entry, movement, audio, save and clean exit.
+## Mods
 
-The game already uses direct Vulkan; Dawn/WebGPU is not part of this port.
-Native downloadable mods and save-state support need separate PS5 verification.
-The bring-up avoids Linux-only stack classification for save-state entry parking;
-ordinary gameplay saves are separate from save states and still require testing.
+The upstream mod manager supports `.wwhdmod` content/settings packages and imports
+Cemu graphics packs. Native desktop mod libraries cannot run on this PS5 build.
+Read upstream `docs/mod-manager.md` for package layouts and install/restart behavior.
+PS5 mod installation is not yet verified. Do not assume Dolphin texture packs work:
+Henriko's Wind Waker 4K pack targets the GameCube/Dolphin version, while this port
+uses the Wii U HD game. No compatible replacement texture pack has been confirmed.
+The initial private test package retains the original Wii U HD textures.
 
-## References and credits
+## Credits and licenses
 
-- [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp): runtime,
-  recompiler, renderer and Wii U library implementations (MPL-2.0).
-- [Cemu](https://github.com/cemu-project/Cemu): vendored shader/address code with
-  upstream notices retained.
-- [PS5CEMU-HAR](https://github.com/premohq/PS5CEMU-HAR): reference for native Vulkan
-  display, memory and controller integration. No emulator binary is deployed.
-- [Mihawk](https://github.com/mihawk-99): PS5 Vulkan/Mesa and platform SDK.
-- [BlackBearReloaded](https://github.com/blackbearreloaded): native runtime foundation.
-- [ps5-payload-dev](https://github.com/ps5-payload-dev): homebrew SDK.
+- [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp): recompilation, runtime, renderer and mod manager.
+- [Mihawk](https://github.com/mihawk-99): PS5 graphics/platform tooling and Vulkan Template.
+- [premohq/PS5CEMU-HAR](https://github.com/premohq/PS5CEMU-HAR): Wii U PS5 integration reference.
+- SDL, Mesa/RADV, glslang, Cemu, Dear ImGui and other upstream dependencies retain their licenses.
 
-Original MPL notices remain intact. The native PS5 runtime's GPL-3.0-or-later
-requirements must be included with any eventual combined binary and source release.
+The original project is MPL-2.0. Imported template files retain MIT notices.
+The linked SDK/native runtime has GPL-3.0-or-later obligations; any distributed
+port binaries require the corresponding platform source and license notices.
+No public binary distribution is prepared here. Not affiliated with Nintendo or Sony.

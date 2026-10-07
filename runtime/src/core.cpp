@@ -6,6 +6,9 @@
 #endif
 #include "platform/host.h"
 #include "write_watch.h"
+#ifdef __PROSPERO__
+#include <ps5platform/shm.h>
+#endif
 #include <zlib.h>
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -90,7 +93,27 @@ namespace mem {
 static std::atomic<uint32_t> g_runtime_top{kRuntimeStart};
 
 void init() {
-#ifdef __APPLE__
+#ifdef __PROSPERO__
+    // Bulk views avoid thousands of per-page kernel mappings. The complete
+    // 4 GiB guest address space is backed in four 1 GiB direct-memory objects.
+    // Reserve first, so fixed views can replace only this title's own arena.
+    int result = ps5_vrange_reserve_at(PPC_MEM_BASE, 0x100000000ull);
+    if (result) fatal("guest virtual reservation failed: %08X", unsigned(result));
+    static ps5_shm backing[4];
+    constexpr size_t chunk = 0x40000000ull;
+    for (size_t i = 0; i < 4; ++i) {
+        result = ps5_shm_create(chunk, &backing[i]);
+        if (result) fatal("guest direct-memory allocation %zu failed: %08X", i, unsigned(result));
+        void* wanted = PPC_MEM_BASE + i * chunk;
+        void* view = nullptr;
+        result = ps5_shm_map(&backing[i], 0, chunk, wanted,
+                             PS5_SHM_READ | PS5_SHM_WRITE, PS5_SHM_FIXED, &view);
+        if (result || view != wanted) fatal("guest direct-memory map %zu failed: %08X", i, unsigned(result));
+        memset(view, 0, chunk);
+    }
+    if (mprotect(PPC_MEM_BASE, 0x10000, PROT_NONE)) fatal("guest null-page guard failed");
+    LOG("[mem] guest 4 GiB window in four direct-memory views; null page protected");
+#elif defined(__APPLE__)
     mach_vm_address_t addr = (mach_vm_address_t)PPC_MEM_BASE;
     kern_return_t kr = mach_vm_allocate(mach_task_self(), &addr, 0x100000000ull, VM_FLAGS_FIXED);
     if (kr != KERN_SUCCESS) fatal("cannot reserve guest address space at %p (kr=%d)", PPC_MEM_BASE, kr);

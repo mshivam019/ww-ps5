@@ -40,7 +40,9 @@ const char* const kModeNames[kDrcModeCount] = {"window", "pip", "auto", "off", "
 const char* const kCornerNames[4] = {"tl", "tr", "bl", "br"};
 const char* const kFilterNames[3] = {"smooth", "sharp", "integer"};
 
-#ifdef __ANDROID__
+#ifdef __PROSPERO__
+std::atomic<int> g_mode{kDrcAuto};
+#elif defined(__ANDROID__)
 // one surface, no GamePad window: the TV picture first; the GamePad-only view (with the game's
 // Off-TV Play on Minus) and the overlay are a tap on the view button away
 std::atomic<int> g_mode{kDrcOff};

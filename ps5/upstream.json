@@ -52,5 +52,9 @@
       "source": "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/llvm-project-18.1.8.src.tar.xz",
       "sha256": "0b58557a6d32ceee97c8d533a59b9212d87e0fc4d2833924eb6c611247db2f2a"
     }
+  },
+  "template": {
+    "repository": "https://github.com/mihawk-99/PS5_VulkanTemplate",
+    "revision": "6d0221abf02a900230d5b4ced3138d422e172426"
   }
 }

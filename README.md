@@ -1,7 +1,8 @@
 # Wind Waker HD for PS5
 
 Native PS5 port work is underway. The game image has been extracted and validated,
-and the PS5 runtime compiles. There is no playable PS5 release yet.
+and the complete native executable builds and links. A private installable test
+package is ready; PS5 launch and gameplay remain unverified.
 See [PS5 build instructions and status](ps5/README.md).
 
 Based on [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp).

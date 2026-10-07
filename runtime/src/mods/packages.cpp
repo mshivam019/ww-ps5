@@ -170,7 +170,9 @@ std::map<std::string,Live> live; // game thread exclusively
 std::vector<std::string> live_order;
 const Value& option(void* c,const char* id){return static_cast<Context*>(c)->config.get(id?id:"");}
 void unload(Live& item){if(item.initialized&&item.api.on_unload)item.api.on_unload(item.api.instance);for(const auto& [id,on]:item.previous)if(const auto* e=manager::find(id))e->apply(on);if(item.library){
-#ifdef _WIN32
+#ifdef __PROSPERO__
+    // Native libraries are not loaded by the PS5 build.
+#elif defined(_WIN32)
     FreeLibrary(static_cast<HMODULE>(item.library));
 #else
     dlclose(item.library);
@@ -182,7 +184,10 @@ void load(Live& item,const Record& record,const Value& configuration){
         if(e->restart_required){std::lock_guard guard(mutex);const auto& saved=profile().get("builtins").get(id);if(saved.type==Value::Bool)item.previous[id]=saved.boolean;}
         e->apply(on);}return;}
     auto path=record.path/record.manifest.binary;
-#ifdef _WIN32
+#ifdef __PROSPERO__
+    throw std::runtime_error("Native PC mod libraries are not supported on PS5");
+    WWHDModInitV1 init = nullptr;
+#elif defined(_WIN32)
     item.library=LoadLibraryW(path.wstring().c_str());require(item.library,"Cannot load native mod library");auto init=reinterpret_cast<WWHDModInitV1>(GetProcAddress(static_cast<HMODULE>(item.library),"wwhd_mod_init_v1"));
 #else
     item.library=dlopen(path.c_str(),RTLD_NOW|RTLD_LOCAL);if(!item.library){const char* reason=dlerror();throw std::runtime_error(reason?reason:"Cannot load native library");}auto init=reinterpret_cast<WWHDModInitV1>(dlsym(item.library,"wwhd_mod_init_v1"));

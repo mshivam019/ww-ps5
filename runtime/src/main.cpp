@@ -1,3 +1,6 @@
+#ifdef __PROSPERO__
+#define main wwhd_main
+#endif
 // Wind Waker HD recompiled: entry point.
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -294,7 +297,7 @@ int main(int argc, char** argv) {
     if (getenv("WWHD_TEST_HOST_CRASH")) {
         LOG("[boot] WWHD_TEST_HOST_CRASH: crashing on purpose in the C library");
         size_t (*volatile len)(const char*) = strlen;
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__PROSPERO__)
         // the C library's own strlen: zig links its own copy into the executable (Linux releases)
         if (void* f = dlsym(RTLD_DEFAULT, "strlen")) len = (size_t (*)(const char*))f;
 #endif
