@@ -16,7 +16,7 @@ retains its normal 30 Hz clock. These are targets, not measured PS5 performance.
 Saved graphics options override the initial defaults, so resolution and interpolation
 can be changed in the controller-accessible settings overlay.
 
-DualSense Cross/Circle/Square/Triangle map to A/B/X/Y. Options maps to Start.
+DualSense Cross/Circle/Triangle/Square map to A/B/X/Y. Options maps to Start.
 Hold the touchpad button (Select) to open the upstream settings/mod menu.
 The GamePad screen is composited into the TV output rather than a desktop window.
 Controller input and audio use the native SDL3 PS5 backend used by Dusklight.
@@ -80,3 +80,19 @@ The original project is MPL-2.0. Imported template files retain MIT notices.
 The linked SDK/native runtime has GPL-3.0-or-later obligations; any distributed
 port binaries require the corresponding platform source and license notices.
 No public binary distribution is prepared here. Not affiliated with Nintendo or Sony.
+
+## PlayStation prompts
+
+The private test package includes pivotiii’s [PlayStation UI](https://gamebanana.com/mods/385841),
+USA English swapped layout. It is enabled as a content mod on first installation.
+Cross is A, Circle is B, Triangle is X and Square is Y. The mod does not include
+USA French/Spanish replacements. Disable it in Mods and restart to restore the
+original prompts. Existing profiles are preserved during updates. Console visuals
+and action labels still need verification. The asset pack is kept outside Git.
+
+To add the recorded mod download to a newly staged private title:
+
+```sh
+python3 ps5/tools/prepare-ps-prompts.py --archive /path/to/windwakerhd_ps_ui_swapped_a2747.zip --title /path/to/test/PPSA99641
+python3 ps5/tools/package-local.py --output /path/to/test/PPSA99641 --validate-only
+```

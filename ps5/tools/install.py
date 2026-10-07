@@ -40,10 +40,18 @@ def main():
             if not source.is_file():
                 continue
             relative = source.relative_to(args.src).as_posix()
-            if relative.startswith('user/'):
+            if relative.startswith('user/') and not relative.startswith('user/ModManager/Mods/') and relative != 'user/ModManager/profiles.json':
                 raise ValueError('The installer must not upload user data')
             target = base + '/' + relative
             directory(ftp, target.rsplit('/', 1)[0])
+            if relative == 'user/ModManager/profiles.json':
+                try:
+                    ftp.size(target)
+                    print('Preserved existing mod profile')
+                    continue
+                except ftplib.error_perm as error:
+                    if not str(error).startswith('550'):
+                        raise
             with source.open('rb') as stream:
                 ftp.storbinary('STOR ' + target + '.next', stream, 262144)
             if ftp.size(target + '.next') != source.stat().st_size:
