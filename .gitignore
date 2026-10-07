@@ -45,3 +45,7 @@ headstart.bin
 /dist/
 *.elf
 *.bin
+
+/.deps/
+
+/.venv/

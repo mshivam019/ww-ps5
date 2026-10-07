@@ -184,7 +184,7 @@ inline const std::string& portable_user_dir() {
 inline bool portable() { return !portable_user_dir().empty(); }
 inline std::string config_dir() {
 #ifdef __PROSPERO__
- return "/app0/user";
+ return "/download0/user";
 #endif
  if(portable()) return portable_user_dir();
 #ifdef __APPLE__

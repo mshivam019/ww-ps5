@@ -190,13 +190,19 @@ std::string state_dir() {
         std::string d;
         if (const char* e = getenv("WWHD_STATE_DIR")) d = e;
         else {
-#ifdef __APPLE__
+#if defined(__PROSPERO__)
+            // Full memory snapshots exceed the small download0 save sandbox.
+            // The installed title folder resides on the user's M.2 drive.
+            d="/app0/user/states";
+#elif defined(__APPLE__)
             d=std::string(getenv("HOME")?getenv("HOME"):".")+"/Library/Application Support/wwhd/states";
 #else
             d=host::config_dir()+"/states";
 #endif
         }
         std::error_code ec; std::filesystem::create_directories(d,ec);
+        if (ec) LOG("[savestate] cannot create %s: %s", d.c_str(), ec.message().c_str());
+        LOG("[savestate] storage: %s", d.c_str());
         return d;
     }();
     return dir;
@@ -342,12 +348,16 @@ bool write_slot(int slot, const Header& h0, const std::vector<uint8_t>& payload)
     for (auto& t : pool) t.join();
     std::string tmp = slot_path(slot, "tmp");
     FILE* f = fopen(tmp.c_str(), "wb");
-    if (!f) return false;
+    if (!f) { LOG("[savestate] open %s failed: %s", tmp.c_str(), strerror(errno)); return false; }
     bool ok = fwrite(&h, sizeof h, 1, f) == 1;
     for (auto& o : out) ok = ok && fwrite(o.data(), 1, o.size(), f) == o.size();
-    ok = fclose(f) == 0 && ok;
-    if (ok) ok = host::replace_file(tmp,slot_path(slot));
-    else remove(tmp.c_str());
+    if (!ok) LOG("[savestate] write %s failed: %s", tmp.c_str(), strerror(errno));
+    if (fclose(f) != 0) { LOG("[savestate] close %s failed: %s", tmp.c_str(), strerror(errno)); ok = false; }
+    if (ok && !host::replace_file(tmp,slot_path(slot))) {
+        LOG("[savestate] commit %s failed: %s", tmp.c_str(), strerror(errno));
+        ok = false;
+    }
+    if (!ok) remove(tmp.c_str());
     return ok;
 }
 

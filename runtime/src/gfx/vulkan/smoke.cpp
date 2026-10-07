@@ -409,7 +409,13 @@ int renderer_smoke_test() {
    fprintf(stderr,"[renderer smoke] depth/stencil upload and clear passed\n");
    Image rendered(64,64,0x1a);dynamic_uniform_check(rendered.s);vertex_window_check(rendered.s);triangle(rendered.s);
    if(R.tv.scan)destroy_surface_image(R.tv.scan.get());R.tv.scan=std::make_unique<Surface>();auto& scan=*R.tv.scan;scan.width=64;scan.height=64;scan.format=0x1a;scan.fmt=format_info(scan.format,false);create_surface_image(&scan,false);resample(&rendered.s,&scan,1);mark_gpu_written(&scan);
-   auto capturePath=std::filesystem::temp_directory_path()/("wwhd-vulkan-smoke-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+".png");
+   auto captureRoot =
+#ifdef __PROSPERO__
+       std::filesystem::path("/download0/user/captures");
+#else
+       std::filesystem::temp_directory_path();
+#endif
+   auto capturePath=captureRoot/("wwhd-vulkan-smoke-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+".png");
    request_tv_dump(capturePath.string(),0);swap();
    std::ifstream capture(capturePath,std::ios::binary);std::vector<uint8_t> png((std::istreambuf_iterator<char>(capture)),std::istreambuf_iterator<char>());
    const uint8_t signature[8]={137,80,78,71,13,10,26,10};require(png.size()>8&&memcmp(png.data(),signature,8)==0,"PNG capture signature differs");

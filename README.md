@@ -1,12 +1,28 @@
 # Wind Waker HD for PS5
 
-Native PS5 port work is underway. The game image has been extracted and validated,
-and the complete native executable builds and links. A private installable test
-package is ready; PS5 launch and gameplay remain unverified.
-See [PS5 build instructions and status](ps5/README.md).
+Native PS5 port of the Wii U recompilation, using direct Vulkan.
+
+Tested on PS5 firmware 9.00: rendering, controller input, normal saves across
+restarts, controller-operated settings/mod menu, GamePad-screen toggle, and
+save-state creation. Output defaults to 4K with paced 60 FPS interpolation;
+game logic remains 30 Hz.
+
+- **Touchpad:** settings and mods. Left stick moves the pointer; Cross clicks.
+- **L1/R1:** settings tabs. Right stick scrolls; D-pad navigation is also available.
+- **L3 + R3:** show/hide the Wii U GamePad screen.
+- **Options:** the game's menu. Use its Save command to keep normal progress.
+- PlayStation button textures are included during setup, enabled for new profiles.
+
+**[Setup, installation, mods and credits](ps5/README.md)** ·
+**[Release validation](ps5/RELEASING.md)**
+
+The repository stays private. The draft release contains source and Linux setup
+tools. Supply your own USA version 0 dump; no game files, generated game code,
+keys, saves or console firmware are included. The output generated on your machine
+is a private installation and must not be redistributed.
 
 Based on [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp).
-The upstream documentation below describes its desktop/mobile versions.
+The documentation below describes upstream desktop/mobile versions.
 
 ---
 

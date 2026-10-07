@@ -8,6 +8,9 @@
 #include <mach/mach.h>
 #endif
 #include "platform/host.h"
+#ifdef __PROSPERO__
+#include <ps5platform/shm.h>
+#endif
 #include "platform/sleep.h"
 #ifdef __APPLE__
 #include <pthread/qos.h>
@@ -85,6 +88,11 @@ struct HostThread {
     HANDLE pt = nullptr;
 #else
     pthread_t pt{};
+#endif
+#ifdef __PROSPERO__
+    ps5_shm native_stack_memory{};
+    void* native_stack_range = nullptr;
+    bool native_joined = false;
 #endif
     // scheduling
     int prio = 16;            // lower runs first; service threads (alarms, audio) use -1
@@ -601,12 +609,47 @@ static void start_host_thread(HostThread* ht) {
     if(!ht->pt)fatal("cannot create guest thread (error=%lu)",GetLastError());
 #else
     pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, 64 << 20);  // deep guest call chains recurse on the host stack
-    pthread_create(&ht->pt, &attr, thread_main, ht);
+    int result = pthread_attr_init(&attr);
+    if (result) fatal("guest thread attributes failed: %d", result);
+#ifdef __PROSPERO__
+    // Keep the upstream 64 MiB recursion budget, but charge it to direct memory.
+    // libkernel's automatic stacks exhaust the title's flexible-memory budget.
+    constexpr size_t stack_bytes = 64ull << 20, guard_bytes = 65536;
+    result = ps5_vrange_reserve(stack_bytes + guard_bytes, nullptr, guard_bytes, &ht->native_stack_range);
+    if (result) fatal("guest stack reservation failed: %08X", unsigned(result));
+    result = ps5_shm_create(stack_bytes, &ht->native_stack_memory);
+    if (result) fatal("guest stack allocation failed: %08X", unsigned(result));
+    void* base = static_cast<char*>(ht->native_stack_range) + guard_bytes;
+    void* view = nullptr;
+    result = ps5_shm_map(&ht->native_stack_memory, 0, stack_bytes, base,
+                         PS5_SHM_READ | PS5_SHM_WRITE, PS5_SHM_FIXED, &view);
+    if (result || view != base) fatal("guest stack mapping failed: %08X", unsigned(result));
+    result = pthread_attr_setstack(&attr, base, stack_bytes);
+#else
+    result = pthread_attr_setstacksize(&attr, 64 << 20);
+#endif
+    if (result) fatal("guest thread stack attributes failed: %d", result);
+    result = pthread_create(&ht->pt, &attr, thread_main, ht);
     pthread_attr_destroy(&attr);
+    if (result) fatal("cannot create guest thread %08X (%s): %d", ht->guest,
+                      mem::read_cstr(ld32(ht->guest + osthread::kName)).c_str(), result);
 #endif
 }
+
+#ifdef __PROSPERO__
+static void join_native_thread(HostThread* ht) {
+    std::lock_guard<std::mutex> lock(ht->m);
+    if (ht->native_joined) return;
+    int result = pthread_join(ht->pt, nullptr);
+    if (result) fatal("cannot join guest thread %08X: %d", ht->guest, result);
+    ht->native_joined = true;
+    constexpr size_t bytes = 64ull << 20, guard = 65536;
+    ps5_shm_unmap(static_cast<char*>(ht->native_stack_range) + guard, bytes, PS5_SHM_KEEP_RESERVED);
+    ps5_shm_destroy(&ht->native_stack_memory);
+    ps5_vrange_release(ht->native_stack_range, bytes + guard);
+    ht->native_stack_range = nullptr;
+}
+#endif
 
 static void init_cpu(Cpu& c, uint32_t stack_top) {
     memset(&c, 0, sizeof(c));
@@ -674,6 +717,9 @@ void run_main(const LoadedModule& m, int argc, uint32_t argv) {
     start_host_thread(ht);
 #ifdef _WIN32
     WaitForSingleObject(ht->pt,INFINITE); CloseHandle(ht->pt); ht->pt=nullptr;
+#elif defined(__PROSPERO__)
+    { std::unique_lock<std::mutex> lock(ht->m); ht->cv.wait(lock, [&] { return ht->exited; }); }
+    join_native_thread(ht);
 #else
     pthread_join(ht->pt, nullptr);
 #endif
@@ -739,6 +785,9 @@ HLE(coreinit, OSJoinThread) {
         std::unique_lock<std::mutex> lk(ht->m);
         park_wait(lk, ht->cv, [&] { return ht->exited; }, W_JOIN, arg(c, 0));
     }
+#ifdef __PROSPERO__
+    join_native_thread(ht);
+#endif
     if (arg(c, 1)) st32(arg(c, 1), ht->exit_value);
     ret(c, 1);
 }

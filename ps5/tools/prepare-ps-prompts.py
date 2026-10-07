@@ -5,22 +5,40 @@ import hashlib
 import json
 from pathlib import Path
 import zipfile
-EXPECTED_MD5 = '4460c869eec9e255f939e69d6a4267d9'
+import urllib.request
+EXPECTED_SHA256 = '935a0274e5b68f21ab9eba14ebbb45ccf976695dba545ccb1273d31a07db606a'
+DOWNLOAD_URL = 'https://gamebanana.com/dl/1126166'
+DEFAULT_ARCHIVE = Path(__file__).resolve().parents[2] / 'build/downloads/playstation-ui-swapped.zip'
 PACK = 'WindWakerHD_PS_UI_swapped/content/Common/Pack/permanent_2d_UsEnglish.pack'
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--archive', type=Path, required=True)
+    p.add_argument('--archive', type=Path, help='Verified local archive; otherwise download to the build cache')
     p.add_argument('--title', type=Path, required=True)
     a = p.parse_args()
-    with a.archive.open('rb') as stream:
-        if hashlib.file_digest(stream,'md5').hexdigest() != EXPECTED_MD5:
+    archive = a.archive or DEFAULT_ARCHIVE
+    if not archive.exists() and a.archive is None:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        temporary = archive.with_suffix('.download')
+        try:
+            request = urllib.request.Request(DOWNLOAD_URL, headers={'User-Agent': 'Wind-Waker-HD-PS5-Setup'})
+            with urllib.request.urlopen(request, timeout=60) as response, temporary.open('wb') as stream:
+                import shutil
+                shutil.copyfileobj(response, stream)
+            with temporary.open('rb') as stream:
+                if hashlib.file_digest(stream, 'sha256').hexdigest() != EXPECTED_SHA256:
+                    raise ValueError('PlayStation UI download checksum mismatch')
+            temporary.replace(archive)
+        finally:
+            temporary.unlink(missing_ok=True)
+    with archive.open('rb') as stream:
+        if hashlib.file_digest(stream,'sha256').hexdigest() != EXPECTED_SHA256:
             raise ValueError('Expected the recorded swapped-layout release')
     if json.loads((a.title/'sce_sys/param.json').read_text())['titleId'] != 'PPSA99641':
         raise ValueError('Wrong title')
     mod = a.title/'user/ModManager/Mods/playstation-ui'
     target = mod/'content/Common/Pack/permanent_2d_UsEnglish.pack'
     target.parent.mkdir(parents=True,exist_ok=True)
-    with zipfile.ZipFile(a.archive) as z:
+    with zipfile.ZipFile(archive) as z:
         if z.testzip(): raise ValueError('Archive CRC failure')
         target.write_bytes(z.read(PACK))
     manifest = {'format_version':1,'id':'playstation-ui','name':'PlayStation UI (USA English)',

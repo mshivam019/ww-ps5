@@ -152,6 +152,10 @@ struct Ui {
     int language_at_start = -1;  // the language this start runs with (game_lang: the one on the disc)
     bool linearized = false;
     bool just_opened = false;
+#ifdef __PROSPERO__
+    bool pointer_mode = false;
+    ImVec2 pointer = ImVec2(-1, -1);
+#endif
     bool list_view = false;  // Controls: the table instead of the drawing
     int hover_action = -1;   // Controls: input under the cursor (status line)
 };
@@ -331,6 +335,10 @@ void read_controller() {
     input::host_controller_values(U.values);
     using namespace input_map;
     const double t = now_s();
+#ifdef __PROSPERO__
+    // Touchpad click opens settings; Options remains the game pause button.
+    if (controller_pressed(kPadOptions)) set_open(!is_open());
+#else
     // Home: toggles; Select / Minus (View / Share): held half a second opens, a press closes
     if (controller_pressed(kPadHome)) set_open(!is_open());
     if (controller_down(kPadOptions)) {
@@ -350,6 +358,7 @@ void read_controller() {
         U.options_since = -1;
         U.options_latched = false;
     }
+#endif
     if (g_wait_release.load()) {
         bool any = false;
         for (int p = 1; p < kPadCount; p++) any |= U.values[p] > 0.3f;
@@ -359,6 +368,27 @@ void read_controller() {
 
 void feed_gamepad(ImGuiIO& io, bool enabled) {
     using namespace input_map;
+#ifdef __PROSPERO__
+    // SDL has no desktop pointer on PS5. Offer a visible stick-driven cursor
+    // for all widgets, with D-pad navigation as an alternative.
+    const float dx = U.values[kPadLSRight] - U.values[kPadLSLeft];
+    const float dy = U.values[kPadLSDown] - U.values[kPadLSUp];
+    if (enabled && (std::abs(dx) > 0.15f || std::abs(dy) > 0.15f)) U.pointer_mode = true;
+    if (enabled && (controller_pressed(kPadDUp) || controller_pressed(kPadDDown) ||
+                    controller_pressed(kPadDLeft) || controller_pressed(kPadDRight))) U.pointer_mode = false;
+    io.MouseDrawCursor = enabled && U.pointer_mode;
+    if (io.MouseDrawCursor) {
+        if (U.pointer.x < 0) U.pointer = ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f);
+        const float speed = 650.f * std::min(io.DeltaTime, 0.05f);
+        U.pointer.x = std::clamp(U.pointer.x + dx * speed, 0.f, std::max(0.f, io.DisplaySize.x - 1));
+        U.pointer.y = std::clamp(U.pointer.y + dy * speed, 0.f, std::max(0.f, io.DisplaySize.y - 1));
+        io.AddMousePosEvent(U.pointer.x, U.pointer.y);
+        const float scroll = U.values[kPadRSUp] - U.values[kPadRSDown];
+        if (std::abs(scroll) > 0.15f) io.AddMouseWheelEvent(0, scroll * io.DeltaTime * 12.f);
+    }
+    io.AddMouseButtonEvent(0, io.MouseDrawCursor && U.values[kPadA] > 0.5f);
+    enabled = enabled && !U.pointer_mode;
+#endif
     auto key = [&](ImGuiKey k, int p) { io.AddKeyAnalogEvent(k, enabled && U.values[p] > 0.5f, enabled ? U.values[p] : 0.0f); };
     key(ImGuiKey_GamepadFaceDown, kPadA);
     key(ImGuiKey_GamepadFaceRight, kPadB);
@@ -1232,6 +1262,7 @@ void settings_window() {
     ImGuiWindowFlags fl = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                           ImGuiWindowFlags_NoSavedSettings;
     bool open = true;
+    const bool focus_page_on_open = U.just_opened;
     if (U.just_opened) {
         ImGui::SetNextWindowFocus();  // keyboard / controller navigation starts in the menu
         U.just_opened = false;
@@ -1247,8 +1278,12 @@ void settings_window() {
                 ImGuiTabItemFlags f = U.select_tab == i ? ImGuiTabItemFlags_SetSelected : 0;
                 if (ImGui::BeginTabItem(kTabNames[i], nullptr, f)) {
                     if (U.tab != i) U.cap_action = -1, g_capturing_keys = false, U.cap_note.clear();
+                    const bool focus_page = focus_page_on_open || U.tab != i || U.select_tab == i;
                     U.tab = i;
                     ImGui::BeginChild("page", ImVec2(0, 0), ImGuiChildFlags_NavFlattened);
+#ifdef __PROSPERO__
+                    if (focus_page && !U.pointer_mode) ImGui::SetKeyboardFocusHere();
+#endif
                     switch (i) {
                     case kSaves: tab_saves(); break;
                     case kGraphics: tab_graphics(); break;

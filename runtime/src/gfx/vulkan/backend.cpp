@@ -1,3 +1,7 @@
+#ifdef __PROSPERO__
+extern "C" void ps5_input_initialize();
+extern "C" void ps5_input_poll();
+#endif
 #ifndef VK_ENABLE_BETA_EXTENSIONS
 #define VK_ENABLE_BETA_EXTENSIONS
 #endif
@@ -2072,6 +2076,9 @@ void init() {
   mods::mouse_init(R.tv.window);
   input::set_prompt_window(R.tv.window);
   input::init();
+#ifdef __PROSPERO__
+  ps5_input_initialize();
+#endif
   install_graphics_menu(R.tv.window);
   ::hostui::load_saved_options();  // graphics and GamePad screen options saved by the settings overlay (settings.ini)
 }
@@ -2345,6 +2352,9 @@ void run_main_loop() {
   const uint64_t exitFrame=exitAt ? std::strtoull(exitAt,nullptr,10) : 0;
   for (;;) {
     SDL_Event event;
+#ifdef __PROSPERO__
+    ps5_input_poll();
+#endif
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_EVENT_QUIT) quit_game();
       if (close_request(event)) continue;

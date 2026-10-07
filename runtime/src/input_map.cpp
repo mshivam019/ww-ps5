@@ -174,7 +174,12 @@ Mapping Mapping::defaults() {
     key(kRUp, kVK_UpArrow); key(kRDown, kVK_DownArrow); key(kRLeft, kVK_LeftArrow); key(kRRight, kVK_RightArrow);
     // controllers map by position: the bottom face button (Xbox A) is the Wii U's B
     const int pads[kActionCount] = {
+#ifdef __PROSPERO__
+        // PlayStation UI pack: Cross=A, Circle=B, Triangle=X, Square=Y.
+        kPadA, kPadB, kPadY, kPadX, kPadLB, kPadRB, kPadLT, kPadRT, kPadMenu, kPadOptions, kPadHome,
+#else
         kPadB, kPadA, kPadY, kPadX, kPadLB, kPadRB, kPadLT, kPadRT, kPadMenu, kPadOptions, kPadHome,
+#endif
         kPadDUp, kPadDDown, kPadDLeft, kPadDRight, kPadL3, kPadR3,
         kPadLSUp, kPadLSDown, kPadLSLeft, kPadLSRight, kPadRSUp, kPadRSDown, kPadRSLeft, kPadRSRight,
     };

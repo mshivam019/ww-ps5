@@ -13,7 +13,15 @@ constexpr int32_t kWpadErrNone = 0, kWpadErrNoController = -1;
 constexpr int32_t kKpadErrNone = 0, kKpadErrNoController = -2;
 constexpr uint8_t kDevURCC = 31, kDevNone = 253, kFormatURCC = 22;
 
-bool connected(uint32_t chan) { return chan == 0 && input::pro_controller(); }
+bool connected(uint32_t chan) {
+#ifdef __PROSPERO__
+    // Mirror the native pad to both Wii U interfaces. The game selects which
+    // interface it reads through its own GamePad / Pro Controller screen.
+    return chan == 0;
+#else
+    return chan == 0 && input::pro_controller();
+#endif
+}
 
 // VPAD button bits (input::PadState) -> Pro Controller (URCC) bits
 uint32_t pro_buttons(uint32_t v) {

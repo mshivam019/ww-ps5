@@ -3,6 +3,7 @@
 // PS5CEMU-HAR (premohq); no desktop Vulkan loader or window surface is used.
 #include "display.h"
 #include <algorithm>
+#include <cstdio>
 #include <stdexcept>
 #include <vector>
 extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
@@ -47,6 +48,7 @@ VkSurfaceKHR display_surface(VkInstance instance, uint32_t& width, uint32_t& hei
                m.parameters.refreshRate >= 59000 && m.parameters.refreshRate <= 61000;
     });
     if (mode == modes.end()) throw std::runtime_error("VideoOut lacks 3840x2160 at 60 Hz");
+    fprintf(stderr, "[display] selected %ux%u at %.3f Hz\n", mode->parameters.visibleRegion.width, mode->parameters.visibleRegion.height, mode->parameters.refreshRate / 1000.0);
     count = 0;
     check(vkGetPhysicalDeviceDisplayPlanePropertiesKHR(device, &count, nullptr), "Enumerate planes");
     std::vector<VkDisplayPlanePropertiesKHR> planes(count);

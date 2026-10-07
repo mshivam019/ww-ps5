@@ -535,7 +535,11 @@ void window() {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.70f, 0.78f, 0.84f, 1.0f));
         ImGui::PushFont(nullptr, fsz * 0.9f);
         ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + inner);
+#ifdef __PROSPERO__
+        ImGui::TextWrapped("Cross: type | Circle: delete | Square: space | Triangle: shift | L1/R1: pages | L2/R2: cursor | Options: OK");
+#else
         ImGui::TextWrapped("Enter OK, Esc Cancel  |  A type, B delete, X space, Y shift, L / R pages, Start OK");
+#endif
         ImGui::PopTextWrapPos();
         ImGui::PopFont();
         ImGui::PopStyleColor();

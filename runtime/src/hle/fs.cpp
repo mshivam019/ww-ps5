@@ -140,6 +140,8 @@ int32_t open_file(const std::string& gpath, const std::string& mode, uint32_t ou
     if (m.find('b') == std::string::npos) m += "b";
     FILE* f = fopen(hp.c_str(), m.c_str());
     TRACE("[fs] open %s (%s) -> %s", gpath.c_str(), mode.c_str(), f ? "ok" : "not found");
+    if (gpath.starts_with("/vol/save/"))
+        TRACE("[save] open %s mode=%s result=%s errno=%d", gpath.c_str(), m.c_str(), f ? "ok" : "failed", f ? 0 : errno);
     if (!f) return FS_NOT_FOUND;
     std::lock_guard<std::mutex> lk(g_fs_mutex);
     uint32_t h = g_next_handle++;
@@ -224,7 +226,11 @@ HLE(coreinit, FSWriteFile) {
     {
         BlockingScope b;
         n = fwrite(mem::ptr(src), 1, (size_t)size * count, f);
-        fflush(f);
+        if (fflush(f) != 0 || ferror(f)) {
+            LOG("[fs] write/flush failed: handle=%u errno=%d", arg(c, 5), errno);
+            ret(c, FS_ACCESS_ERROR);
+            return;
+        }
     }
     ret(c, (uint32_t)(n / size));
 }

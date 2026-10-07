@@ -5,6 +5,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 TITLE = 'PPSA99641'
@@ -35,6 +37,8 @@ def main():
     p.add_argument('--vulkan', type=Path)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--validate-only', action='store_true')
+    p.add_argument('--ps-prompts-archive', type=Path, help='Use a local PlayStation UI archive instead of downloading')
+    p.add_argument('--without-ps-prompts', action='store_true', help='Explicitly omit the default PlayStation texture mod')
     a = p.parse_args()
     if a.validate_only:
         expected = json.loads((a.output.parent/'manifest.json').read_text())['files']
@@ -57,6 +61,11 @@ def main():
         image.convert('RGB').resize((512,512), Image.Resampling.LANCZOS).save(a.output/'sce_sys/icon0.png')
     (a.output/'user/save').mkdir(parents=True)
     (a.output/'user/captures').mkdir()
+    if not a.without_ps_prompts:
+        command = [sys.executable, str(ROOT/'ps5/tools/prepare-ps-prompts.py'), '--title', str(a.output)]
+        if a.ps_prompts_archive:
+            command += ['--archive', str(a.ps_prompts_archive)]
+        subprocess.run(command, check=True)
     manifest = {'title':TITLE, 'private_test_build':True, 'console_tested':False, 'files':validate(a.output)}
     (a.output.parent/'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
     print(f"Validated {len(manifest['files'])} files: {a.output}")

@@ -2,6 +2,8 @@
 """Upload a native title over FTP, preserving existing configuration and saves."""
 import argparse
 import ftplib
+import json
+import console_control
 from pathlib import Path
 
 TITLE = 'PPSA99641'
@@ -24,11 +26,17 @@ def main():
     parser.add_argument('--src', type=Path, required=True)
     parser.add_argument('--console', required=True)
     parser.add_argument('--ftp-port', type=int, default=2121)
+    parser.add_argument('--control-port', type=int, default=9114)
     parser.add_argument('--install-root', default='/mnt/ext1/etaHEN/games')
     args = parser.parse_args()
     if not (args.src / 'eboot.bin').is_file():
         parser.error('--src must be the extracted PPSA99641 folder')
-    print('Close the title before uploading. This helper does not register or launch it.')
+    console_control.HOST = args.console
+    console_control.PORT = args.control_port
+    processes = json.loads(console_control.call(162, {}))['procs']
+    if any(p.get('title_id') == TITLE for p in processes):
+        raise RuntimeError('Wind Waker HD is running. Save and close it before installing.')
+    print('Title is closed. This helper does not register or launch it.')
     base = args.install_root.rstrip('/') + '/' + TITLE
     with ftplib.FTP() as ftp:
         ftp.connect(args.console, args.ftp_port, timeout=60)
@@ -54,7 +62,12 @@ def main():
                         raise
             with source.open('rb') as stream:
                 ftp.storbinary('STOR ' + target + '.next', stream, 262144)
-            if ftp.size(target + '.next') != source.stat().st_size:
+            # FTP exposes SELF files decoded as ELF. Query stored size through
+            # PS5 Upload instead so executable verification uses the raw file.
+            parent, name = (target + '.next').rsplit('/', 1)
+            entries = json.loads(console_control.call(36, {'path': parent}))['entries']
+            stored = next((e['size'] for e in entries if e['name'] == name), None)
+            if stored != source.stat().st_size:
                 raise RuntimeError(f'Transfer size mismatch: {relative}')
             ftp.rename(target + '.next', target)
             print('Uploaded', relative)

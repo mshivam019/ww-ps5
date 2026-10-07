@@ -4,21 +4,9 @@
   "reference_repository": "https://github.com/premohq/PS5CEMU-HAR",
   "reference_revision": "3ae393ccbd73bda379763ccb487f1f670eef8bf2",
   "ps5_dependencies": {
-    "aurora": {
-      "repository": "https://github.com/mshivam019/dusklight-ps5.git",
-      "revision": "e281999cdb4fee6127525a9a9e97979480db4bf3"
-    },
-    "dawn": {
-      "repository": "https://github.com/mshivam019/dusklight-ps5.git",
-      "revision": "652a3104791369cd23605856fbc041375ccda875"
-    },
     "sdl3": {
       "repository": "https://github.com/mshivam019/dusklight-ps5.git",
       "revision": "68159af2b34cc4fe5b3548faa89e87a69e4d2dce"
-    },
-    "abseil2024": {
-      "repository": "https://github.com/mshivam019/dusklight-ps5.git",
-      "revision": "5c695e68fcd3e7483ed300b6591d1ec49ae37cf4"
     },
     "sdk-platform": {
       "repository": "https://github.com/mshivam019/dusklight-ps5.git",
@@ -42,10 +30,6 @@
     },
     "runtime": {
       "sha256": "e6ff45d16adf687855cc3b33b0c8a4132b6504360b221e0a34c7e99fb3ba0036"
-    },
-    "astc-decoder": {
-      "repository": "https://github.com/ARM-software/astc-encoder.git",
-      "revision": "9fbec68053d507023bb30e2a449f900a915882b9"
     },
     "llvm-runtime": {
       "version": "18.1.8",
