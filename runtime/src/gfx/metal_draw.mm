@@ -1,3 +1,4 @@
+#include "gfx/shader_identity.h"
 #include <chrono>
 extern "C" uint64_t g_shader_state_gen;  // gx2_core.cpp: bumped by shader-relevant register changes
 // Draw calls: shader translation (via the vendored decompiler), pipelines,
@@ -224,6 +225,7 @@ static void compile_done(std::atomic<int>& st, int v) {
 
 struct Shader {
     uint64_t key = 0;
+    gfx::ProgramKind kind = gfx::ProgramKind::Other;
     LatteDecompilerShader* dec = nullptr;
     id<MTLFunction> fn = nil;                 // valid once state == CS_READY
     std::atomic<int> state{CS_PENDING};
@@ -435,6 +437,7 @@ static Shader* get_shader_uncached(const uint32_t* regs, bool vertex, LatteFetch
     if (it != g_shaders.end()) return it->second;
 
     auto* s = new Shader();
+    s->kind = gfx::program_kind(mem::ptr(addr), size, vertex);
     s->key = key;
     g_shaders[key] = s;
     double t0 = now_ms();
@@ -868,7 +871,6 @@ static const bool g_snapshot = getenv("WWHD_SNAPSHOT") != nullptr;
 static std::atomic<bool> g_ao_hires{[] { const char* e = getenv("WWHD_AO_HIRES"); return !e || atoi(e) != 0; }()};
 bool ao_hires_enabled() { return g_ao_hires.load(std::memory_order_relaxed); }
 void set_ao_hires(bool v) { g_ao_hires = v; LOG("[gfx] full-size occlusion depth %s", v ? "on" : "off"); }
-constexpr uint32_t kDepthDownsamplePS = 0x3BB9DE00, kOcclusionPS = 0x44BDFD00;
 static bool g_hires_redraw = false;          // inside the second draw of the downsample
 static uint32_t g_hires_src = 0;             // guest address of the game's 640x360 buffer
 static uint64_t g_hires_frame = ~0ull;       // frame the private copy was last drawn
@@ -918,7 +920,7 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
         const uint32_t* tw = &regs[texBase + unit * 7];
         Surface* s = sampled_texture(tw, dec->textureUsesDepthCompare[unit]);
         if (!vertex && s && g_hires_src && s->addr == g_hires_src && g_hires_frame == R.frame && ao_hires_enabled() &&
-            (regs[mmSQ_PGM_START_PS] << 8) == kOcclusionPS)
+            sh->kind == gfx::ProgramKind::OcclusionPixel)
             s = &g_hires_color;
         id<MTLTexture> tex = s && s->tex ? texture_view(s, type, tw[4]) : nil;
         if (s && unit < 18) { texScale[unit][0] = s->sx; texScale[unit][1] = s->sy; }
@@ -934,7 +936,7 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
         // buffer while drawing 960x540; every third row lands half a texel off and shows as screen-fixed
         // lines on sloped ground in shadow. Bilinear for that one fetch matches its neighbour fetches.
         uint32_t patched[3];
-        if (ao_mode() >= 1 && !vertex && unit == 0 && (regs[mmSQ_PGM_START_PS] << 8) == 0x44BDFD00) {
+        if (ao_mode() >= 1 && !vertex && unit == 0 && sh->kind == gfx::ProgramKind::OcclusionPixel) {
             memcpy(patched, sw, sizeof patched);
             patched[0] = (patched[0] & ~0x7E00u) | (1u << 9) | (1u << 12);  // XY mag/min filter: bilinear
             sw = patched;
@@ -980,7 +982,7 @@ static void bind_stage(id<MTLRenderCommandEncoder> enc, const uint32_t* regs, Sh
             }
             // AO mode 2: the occlusion pass's VS (44BDF900) scales its noise coordinates by remapped[0].w
             // for a 640x360 grid; the pass draws 960x540, so tile the 4x4 noise per output pixel instead
-            if (vertex && ao_mode() == 2 && (regs[mmSQ_PGM_START_VS] << 8) == 0x44BDF900)
+            if (vertex && ao_mode() == 2 && sh->kind == gfx::ProgramKind::OcclusionVertex)
                 ((float*)dst)[3] *= 1.5f;
         }
         if (dec->uniform.loc_uniformRegister >= 0)
@@ -1710,7 +1712,7 @@ void draw(const uint32_t* regs, uint32_t prim, uint32_t count, uint32_t indexTyp
         }
     }
     if (g_hires_redraw) { g_hires_frame = R.frame; return; }  // the private copy is ready for the occlusion pass
-    if (ao_hires_enabled() && colors[0] && (regs[mmSQ_PGM_START_PS] << 8) == kDepthDownsamplePS) {
+    if (ao_hires_enabled() && colors[0] && ps->kind == gfx::ProgramKind::DepthDownsample) {
         g_hires_redraw = true;
         draw(regs, prim, count, indexType, indexAddr, baseVertex, instances);
         g_hires_redraw = false;

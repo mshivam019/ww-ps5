@@ -184,6 +184,7 @@ inline const std::string& portable_user_dir() {
 inline bool portable() { return !portable_user_dir().empty(); }
 inline std::string config_dir() {
 #ifdef __PROSPERO__
+ if(const char* path=getenv("WWHD_PS5_USER_DIR"))return path;
  return "/download0/user";
 #endif
  if(portable()) return portable_user_dir();

@@ -23,6 +23,7 @@
 // runtime allocations) and guest memory (MEM2, runtime objects, fixed slots, foreground bucket,
 // MEM1; all-zero 64 KiB chunks are left out).
 #include "savestate.h"
+#include "guest_addr.h"
 
 #ifdef __APPLE__
 #include <compression.h>
@@ -254,7 +255,7 @@ uint64_t game_id() {
 }
 
 // current stage (dComIfG_gameInfo.play: the start stage, 8 chars)
-constexpr uint32_t kStageName = 0x1046F0B0 + 0x5134;  // dStage_startStage_c (next stage at +0x5140)
+const GuestAddress kStageName{0x1046F0B0, false, 0x5134};  // dStage_startStage_c (next stage at +0x5140)
 std::string stage_name() {
     if (const char* e = getenv("WWHD_STATE_STAGE_ADDR")) {
         uint32_t a = (uint32_t)strtoul(e, nullptr, 16);
@@ -753,7 +754,7 @@ void service(Cpu* c) {
     if (s && do_load(s)) {
         g_last_load_frame = render::frame_count();
         g_last_load_step = interp::logic_steps();
-        g_last_load_counter = ld32(0x101FF560);  // g_Counter.mTimer: the game's own step counter, part of the state
+        g_last_load_counter = ld32(GD(0x101FF560));  // g_Counter.mTimer: the game's own step counter, part of the state
         {
             std::lock_guard<std::mutex> lk(g_mu);
             g_load_ready.reset();

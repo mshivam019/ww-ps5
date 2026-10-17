@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <SDL3/SDL.h>
 #include "native/platform.h"
+#include "storage.h"
 extern "C" void catchReturnFromMain(int status);
 extern "C" [[noreturn]] void __wrap_exit(int status) {
     catchReturnFromMain(status);
@@ -66,9 +67,28 @@ int main() {
     interp::set_paced_interpolation(true);
     char app[] = "/app0/eboot.bin";
     char game_option[] = "--game";
-    char game[] = "/app0/game";
+    std::string game_path = "/app0/game";
+    std::string save_path = "/download0/user/save";
+    try {
+        const std::string title = ps5_storage::title_id("/app0/sce_sys/param.json");
+        const std::filesystem::path persistent = "/data/wwhd/" + title;
+        const auto storage = ps5_storage::prepare({"/app0", persistent,
+            std::filesystem::path("/data/prosperostore/previous") / title, "/download0"});
+        game_path = storage.game.string();
+        save_path = storage.save.string();
+        setenv("WWHD_PS5_USER_DIR", storage.user.c_str(), 1);
+        setenv("WWHD_STATE_DIR", storage.states.c_str(), 0);
+        if (!storage.error.empty()) throw std::runtime_error(storage.error);
+    } catch (const std::exception& error) {
+        // The runtime selects its renderer before showing an actionable setup error.
+        setenv("WWHD_PS5_STORAGE_ERROR", error.what(), 1);
+    }
+    platform_dismiss_splash();  // keep the launch picture visible during the first data copy
+    say("Game data: %s", game_path.c_str());
+    setenv("WWHD_PS5_GAME_LOCATION", game_path.c_str(), 1);
+    char* game = game_path.data();
     char save_option[] = "--save";
-    char save[] = "/download0/user/save";
+    char* save = save_path.data();
     char trace[] = "--trace";
     char smoke[] = "--renderer-smoke";
     if (FILE* flag = fopen("/app0/ps5-display-test.txt", "rb")) {

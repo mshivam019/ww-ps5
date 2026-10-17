@@ -9,8 +9,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 def abi():
+    paths = [ROOT/'runtime/include/ppc.h', ROOT/'runtime/include/recomp_table.h', ROOT/'runtime/include/guest_addr.h', ROOT/'tools/recomp/builds/eu.json', *sorted((ROOT/'tools/recomp').glob('hooks*.txt'))]
+    return hashlib.sha256(b'wwhd-ps5-module-v2\0'+b''.join(p.read_bytes().replace(b'\r\n', b'\n') for p in paths)).hexdigest()
+
+def legacy_abi():
+    # The published ps5-v0.1.2 USA-only ABI, derived from its LF source tree.
+    return 'bfb5c6228ce124452e7f1dd79c8b88538539cbbcb82bce28c3abc7c1805e1be4'
+
+def legacy_compatible():
     paths = [ROOT/'runtime/include/ppc.h', ROOT/'runtime/include/recomp_table.h', *sorted((ROOT/'tools/recomp').glob('hooks*.txt'))]
-    return hashlib.sha256(b'wwhd-ps5-module-v1\0'+b''.join(p.read_bytes() for p in paths)).hexdigest()
+    current = hashlib.sha256(b'wwhd-ps5-module-v1\0'+b''.join(p.read_bytes().replace(b'\r\n', b'\n') for p in paths)).hexdigest()
+    return current == legacy_abi()
 
 def symbols(nm, path, *flags):
     text = subprocess.check_output([nm, *flags, str(path)], text=True)
@@ -41,7 +50,7 @@ def bridge(out, nm, archive, module):
     for i, name in enumerate(exports): lines.append(f'  if (!strcmp(name,"{name}")) return host_{i};')
     lines += ['  return nullptr;', '}']
     (out/'exports.cpp').write_text('\n'.join(lines)+'\n')
-    (out/'abi.h').write_text(f'#define WWHD_MODULE_ABI "{abi()}"\n')
+    (out/'abi.h').write_text(f'#define WWHD_MODULE_ABI "{abi()}"\n#define WWHD_LEGACY_USA_ABI "{legacy_abi()}"\n#define WWHD_CAN_LOAD_LEGACY_USA {int(legacy_compatible())}\n')
     (out/'required.inc').write_text(''.join(f'REQUIRE_GAME_SYMBOL("f_{e:08X}{s}")\n' for e in funcs for s in (['','_orig'] if e in hooks else [''])))
     print(f'Generated bridge: {len(funcs)} runtime calls, {len(exports)} host symbols')
 

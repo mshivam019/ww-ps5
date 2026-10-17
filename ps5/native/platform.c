@@ -51,7 +51,12 @@ platform_init(const char *title_name)
    snprintf(prefix, sizeof(prefix), "[%s] ", title_name);
    const int captured = ps5_klog_capture_stderr(prefix);
    say("starts (standard error to klog: %s)", captured == 0 ? "yes" : "no");
-   /* The shell's splash covers the title's frames until it is dismissed. */
+}
+
+void
+platform_dismiss_splash(void)
+{
+   /* Initial game-data protection can take time. Keep the launch picture until then. */
    say("splash dismissed: %d", sceSystemServiceHideSplashScreen());
 }
 

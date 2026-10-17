@@ -1,3 +1,4 @@
+#include "guest_addr.h"
 #include "mods/packages.h"
 // Frame interpolation (60 fps output, game logic unchanged at 30 steps per second).
 //
@@ -252,7 +253,7 @@ extern "C" void hook_024FFC40(Cpu* c) {
         static std::vector<uint32_t> before;
         static std::unordered_map<uint32_t, int> cnt;
         static int n = 0;
-        const uint32_t lo = 0x10100000, hi = 0x10500000;
+        const uint32_t lo = GD(0x10100000), hi = 0x10500000;
         before.assign((uint32_t*)ppc_ptr(lo), (uint32_t*)ppc_ptr(hi));
         f_024FFC40_orig(c);
         const uint32_t* cur = (const uint32_t*)ppc_ptr(lo);
@@ -650,8 +651,10 @@ extern "C" void hook_025F172C(Cpu* c) {
 // drawing code), and those calls must always run.
 static Cpu* g_hold_child_cpu = nullptr;
 static bool called_from_frame_function() {
+    // the per-frame function, in this build (runtime/include/guest_addr.h)
+    static const uint32_t lo = GC(0x0203593C), hi = GC(0x02035A78);
     uint32_t lr = g_hold_child_cpu ? g_hold_child_cpu->lr : 0;
-    return lr > 0x0203593C && lr < 0x02035A78;
+    return lr > lo && lr < hi;
 }
 static bool hold_skip_child(int i) {
     // children 7-14 (after the loop body: frame setup, lighting, display) run; 1, 4, 5 (HD menus and
@@ -681,7 +684,9 @@ namespace interp { void light_trace_add(const char* fmt, ...); }
 // The state from before the logic pass's call is put back first, so with the random numbers
 // replayed (interp_fx.cpp) the hold pass gets exactly the logic pass's light.
 namespace {
-constexpr uint32_t kSetLightTarget = 0x101E8EC8, kSetLightEfTarget = 0x101E8ECC, kLightStatusPt = 0x101E8CC8;
+const GuestAddress kSetLightTarget{0x101E8EC8, false};
+const GuestAddress kSetLightEfTarget{0x101E8ECC, false};
+const GuestAddress kLightStatusPt{0x101E8CC8, false};
 struct SetLightState {
     uint64_t step = ~0ull;
     uint32_t target, ef_target, status, pos[3];
@@ -725,8 +730,8 @@ extern "C" void hook_0255E854(Cpu* c) {
         after_logic.status = st2;
         for (int i = 0; i < 3; i++) after_logic.pos[i] = st2 ? ld32(st2 + 4 * i) : 0;
     }
-    uint32_t st = ld32(0x101E8CC8);  // lightStatusPt
-    interp::light_trace_add(" setLight t%.2f r%u p(%.1f,%.1f,%.1f)", ldf32(0x101E8EC8), st ? ld8(st + 0x18) : 0, st ? ldf32(st) : 0.0,
+    uint32_t st = ld32(GD(0x101E8CC8));  // lightStatusPt
+    interp::light_trace_add(" setLight t%.2f r%u p(%.1f,%.1f,%.1f)", ldf32(GD(0x101E8EC8)), st ? ld8(st + 0x18) : 0, st ? ldf32(st) : 0.0,
                             st ? ldf32(st + 4) : 0.0, st ? ldf32(st + 8) : 0.0);
 }
 extern "C" void hook_02738438(Cpu* c) {

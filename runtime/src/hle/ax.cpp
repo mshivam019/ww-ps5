@@ -1,3 +1,4 @@
+#include "guest_addr.h"
 // snd_core (AX): voices, the 3 ms audio frame, mixing and output.
 //
 // Every frame (96 samples at 32 kHz) each playing voice is decoded (ADPCM/PCM16/PCM8),

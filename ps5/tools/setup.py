@@ -13,9 +13,9 @@ import sys
 import tarfile
 import urllib.request
 import zipfile
+from game_build import identify_game
 
 ROOT = Path(__file__).resolve().parents[2]
-RPX_SHA = 'c4f0ab300542e0bfc462696850534e71db2ad02288a7eb55e5a4cd4062f16153'
 
 
 def sha(path):
@@ -76,8 +76,8 @@ def check_runtime(runtime):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     inputs = p.add_mutually_exclusive_group()
-    inputs.add_argument('--game', type=Path, help='Extracted USA version 0 code/content/meta folder')
-    inputs.add_argument('--image', type=Path, help='USA version 0 WUX image')
+    inputs.add_argument('--game', type=Path, help='Extracted USA or European version 0 code/content/meta folder')
+    inputs.add_argument('--image', type=Path, help='USA or European version 0 WUX image')
     p.add_argument('--disc-key', type=Path)
     p.add_argument('--common-key', type=Path)
     p.add_argument('--output', type=Path, default=ROOT.parent/'Wind-Waker-HD-PS5-install/PPSA99641')
@@ -85,7 +85,7 @@ def main():
     p.add_argument('--jobs', type=int, default=4)
     a = p.parse_args()
     if not a.game and not a.image:
-        print('Wind Waker HD for PS5 setup\nUse your USA Wii U version 0 dump.')
+        print('Wind Waker HD for PS5 setup\nUse your USA or European Wii U version 0 dump.')
         supplied = Path(input('Game folder or WUX file path: ').strip().strip('"').strip("'"))
         if supplied.is_dir(): a.game = supplied
         else: a.image = supplied
@@ -116,8 +116,8 @@ def main():
             run(python,ROOT/'ps5/tools/prepare-game.py','--image',a.image,'--disc-key',a.disc_key,
                 '--common-key',a.common_key,'--output',game)
             marker.write_text(identity)
-    if not (game/'code/cking.rpx').is_file() or sha(game/'code/cking.rpx') != RPX_SHA:
-        p.error('This dump is not the supported USA Wii U version 0.')
+    build = identify_game(game)
+    print('Verified Wii U build: ' + build.name, flush=True)
     host_id = host()
     tools = compiler(host_id)
     packer = ROOT/'host-tools'/host_id/('ps5-native-tool.exe' if os.name=='nt' else 'ps5-native-tool')
@@ -131,7 +131,7 @@ def main():
     flags = ['-target','x86_64-sie-ps5','-fvisibility-nodllstorageclass=default',
              '-isystem',str(runtime/'include'),'-I',str(ROOT/'runtime/include'),'-I',str(gen),
              '-fno-stack-protector','-fno-plt','-femulated-tls','-fdenormal-fp-math=ieee',
-             '-fPIC','-O3','-DNDEBUG','-std=gnu11','-ffp-contract=off','-fno-strict-aliasing','-w']
+             '-fPIC','-O3','-DNDEBUG','-std=gnu11','-ffp-contract=off','-fno-strict-aliasing','-fwrapv','-w']
     sources = sorted(gen.glob('code_*.c'))+[gen/'table.c',gen/'imports.c']
     build_identity = sha(runtime/'manifest.json') + sha(ROOT/'runtime/include/ppc.h') + sha(ROOT/'runtime/include/recomp_table.h') + sha(ROOT/'ps5/toolchains.json')
     def compile_one(source):
@@ -152,7 +152,7 @@ def main():
         module=work/'game.wwhd'
         run(python,ROOT/'ps5/tools/build-game-module.py','--archive',archive,'--clang',tools['clang'],'--linker',tools['ld.lld'],'--nm',tools['llvm-nm'],'--output',module)
         run(python,ROOT/'ps5/tools/package-game.py','--game',game,'--module',module,'--output',a.output)
-        print('Copy the generated game/ and user/ folders into the matching installed PPSA99641 app.')
+        print('Copy game/ to /data/wwhd/PPSA99641/game and merge any user/ into /data/wwhd/PPSA99641/user.')
         return
     elf=work/'llvm-pie.elf'
     recipe=json.loads((runtime/'link.json').read_text())

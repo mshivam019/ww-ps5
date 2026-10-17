@@ -1,3 +1,4 @@
+#include "guest_addr.h"
 // Quick doors and fast scene changes: while a door event or a scene change is in progress, the game
 // runs extra logic steps per frame (game time passes faster), so nothing is skipped: every
 // animation, event cut, flag and sound of the door or the transition happens exactly as before,
@@ -43,9 +44,9 @@ namespace interp { bool hold_pass(); }
 
 namespace mods {
 namespace {
-constexpr uint32_t kOverlap = 0x101F36CC;  // l_fopOvlpM_overlap[0] (fopOvlpM_IsPeek 025DBE00)
+const GuestAddress kOverlap{0x101F36CC, false};  // l_fopOvlpM_overlap[0] (fopOvlpM_IsPeek 025DBE00)
 constexpr uint32_t kOvlpTask = 0x20;       // overlap_request_class::mpTask (fopOvlpM_SceneIsStart)
-constexpr uint32_t kPadPtr = 0x101F5088;   // the game's pad state (pad accessors 0200763C...)
+const GuestAddress kPadPtr{0x101F5088, false};   // the game's pad state (pad accessors 0200763C...)
 constexpr uint32_t kCurProc = 0x65F0;      // daPy_lk_c::mCurProc
 constexpr int kDoorTalk = 16;              // dDoor_info_c action table: "TALK"
 

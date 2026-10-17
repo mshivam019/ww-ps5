@@ -4,9 +4,10 @@ import argparse
 import hashlib
 from pathlib import Path
 import sys
+from game_build import identify_game
+from builds import by_title
 
 ROOT = Path(__file__).resolve().parents[2]
-RPX_SHA256 = 'c4f0ab300542e0bfc462696850534e71db2ad02288a7eb55e5a4cd4062f16153'
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -28,8 +29,9 @@ def main():
     from wudextract import open_disc
     _, game, title_id = open_disc(str(args.image.resolve()), str(args.disc_key.resolve()),
                                  str(args.common_key.resolve()))
-    if title_id != '0005000010143500':
-        raise ValueError('Expected the USA Wind Waker HD disc')
+    if by_title(title_id) is None:
+        game.wud.f.close()
+        raise ValueError('Expected the USA or European Wind Waker HD disc')
     try:
         for entry in game.entries:
             if entry.is_dir or entry.flags & 0x80:
@@ -42,10 +44,10 @@ def main():
                 game.read_file(entry, stream)
     finally:
         game.wud.f.close()
-    rpx = output / 'code/cking.rpx'
-    if not rpx.is_file() or hashlib.sha256(rpx.read_bytes()).hexdigest() != RPX_SHA256:
-        raise RuntimeError('Extracted RPX does not match the supported USA version 0')
-    print('Extracted and verified USA version 0. Game files remain outside Git.')
+    build = identify_game(output)
+    if build.title_id != title_id:
+        raise ValueError('Disc title and executable region do not match')
+    print('Extracted and verified ' + build.name + ' version 0. Game files remain outside Git.')
 
 if __name__ == '__main__':
     main()

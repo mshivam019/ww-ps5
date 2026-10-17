@@ -4,7 +4,7 @@ A native PS5 port of [ZeldaWWHDRecomp v0.2.3](https://github.com/ZeldaWWHDRecomp
 
 [Download v0.1.2](https://github.com/mshivam019/ww-ps5/releases/tag/ps5-v0.1.2) · [Installation and mods](ps5/README.md) · [Build from source](ps5/README.md#windows-macos-and-linux)
 
-**Stable release.** Tested on PS5 firmware 9.00 with kstuff and ShadowMount.
+The linked **v0.1.2 release supports USA**. This branch adds European/PAL version-0 support and protects game data across app updates; it requires a rebuilt app and matching setup.
 
 ## Features
 
@@ -12,14 +12,14 @@ A native PS5 port of [ZeldaWWHDRecomp v0.2.3](https://github.com/ZeldaWWHDRecomp
 - 3840 × 2160 output with paced 60 FPS interpolation and the original 30 Hz game logic.
 - PS5 controller input, audio, and an on-screen keyboard for name entry.
 - Controller-operated settings, graphics options and mod menu.
-- PlayStation button textures enabled by default during setup.
+- PlayStation button textures enabled by default during USA English setup.
 - Normal saves across restarts and save states stored on M.2.
 - Show or hide the Wii U GamePad screen with a controller shortcut.
 
 ## Requirements
 
 - A homebrew-capable PS5 with native folder-title support, FTP and a title registration/mounting setup.
-- Your own **USA Wii U version 0** dump, or its extracted `code`, `content` and `meta` folders.
+- Your own **USA or European/PAL Wii U version 0** dump, or its extracted `code`, `content` and `meta` folders.
 - A Windows, macOS or Linux computer with Python 3.11+ for setup and enough M.2 space for the game and save states.
 
 The release contains a ready-to-install PS5 app and a separate computer setup bundle.
@@ -29,8 +29,8 @@ Your game dump, keys and generated game module stay on your computer and console
 
 1. Install **PPSA99641.zip** using your native-title launcher or PS5 Upload.
 2. Extract the matching **setup ZIP** on your computer. Run **Setup-Windows.cmd**, **Setup-macOS.command**, or `sh setup.sh` on Linux.
-3. Choose your dump. Setup prepares `game/` and the default PlayStation button mod.
-4. With the game closed, copy the generated `game/` and `user/` folders into `/mnt/ext1/etaHEN/games/PPSA99641`. Preserve existing saves and settings.
+3. Choose your dump. Setup verifies its region and prepares the matching `game/` module. The existing PlayStation prompt mod remains USA English only.
+4. With the game closed, copy `game/` to `/data/wwhd/PPSA99641/game` and merge any generated `user/` into `/data/wwhd/PPSA99641/user`. Existing app-local data is imported on first launch; see [update protection](ps5/CATALOG-SETUP.md#update-protection).
 5. Launch **Wind Waker HD** from the PS5 home screen.
 
 Existing v0.1.1 users need to run setup once to create `game/game.wwhd`.
@@ -59,7 +59,7 @@ See [mod setup and paths](ps5/README.md#mods) for details.
 ## Language configuration
 
 1. Press **Touchpad**, then use **L1/R1** to open **Language / About**.
-2. Under **Console language**, select **English**, **French** or **Spanish** with the pointer and Cross.
+2. Under **Console language**, select **English**, **French** or **Spanish**, or also **German** and **Italian** for a European dump, with the pointer and Cross.
 3. Save your game, close it and relaunch to apply the language.
 
 This changes the emulated Wii U language, not your PS5 system language. The settings menu stays in English. PlayStation button textures currently cover English only; French and Spanish use the original prompts.

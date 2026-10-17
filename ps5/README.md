@@ -1,7 +1,7 @@
 # Setup and installation
 
 Install the release's **PPSA99641.zip** app first. The computer setup prepares its
-separate game folder from your own **USA Wii U version 0** dump.
+separate game folder from your own **USA or European/PAL Wii U version 0** dump.
 Use an extracted folder containing `code`, `content` and `meta`, or a WUX image
 with your own disc key and Wii U common key files. Other regions and revisions
 are rejected before compilation.
@@ -20,7 +20,7 @@ If missing, it asks for their paths. Keys stay on your computer.
 
 The PS5 app is already built. Setup
 automatically downloads a verified portable compiler, compiles only the code
-from your dump, adds PlayStation prompts and checks the finished files. Windows,
+from your dump, adds the existing USA English PlayStation prompts when applicable and checks the finished files. Windows,
 macOS and Linux releases support x86-64 and ARM64 computers. Internet access and
 space for your dump, tools and final game folder are required.
 
@@ -57,7 +57,9 @@ run on your computer only to prepare its files.
 
 1. Close Wind Waker HD if it is running.
 2. Install the app ZIP at `/mnt/ext1/etaHEN/games/PPSA99641`, then copy the generated
-   `game/` and `user/` folders into it using FTP. Preserve existing saves and settings.
+   `game/` folder to `/data/wwhd/PPSA99641/game` and merge any generated `user/`
+   into `/data/wwhd/PPSA99641/user`. App-local data is imported on first launch;
+   [update protection](CATALOG-SETUP.md#update-protection) explains the paths and limits.
    The included installer accepts the extracted app folder with FTP and PS5 Upload running:
 
    ```sh

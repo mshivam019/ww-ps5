@@ -22,7 +22,7 @@ def main():
                     '--whole-archive',str(a.archive),'--no-whole-archive',str(obj),'-o',str(a.output)],check=True)
     exports=subprocess.check_output([a.nm,'-D','--defined-only',str(a.output)],text=True)
     names={line.split()[-1] for line in exports.splitlines() if line.strip()}
-    required={'wwhd_game_abi','g_recomp_funcs','g_recomp_func_count','g_recomp_imports','g_recomp_import_count','g_recomp_entry_point'}
+    required={'wwhd_game_abi','g_recomp_funcs','g_recomp_func_count','g_recomp_imports','g_recomp_import_count','g_recomp_entry_point','g_guest_build_name','g_guest_build_title_id','g_guest_code_steps','g_guest_code_step_count','g_guest_data_steps','g_guest_data_step_count','g_guest_code_lo','g_guest_code_hi','g_guest_data_lo','g_guest_data_hi','g_guest_changed_code','g_guest_changed_code_count'}
     if required-names:raise ValueError('Missing module exports: '+str(sorted(required-names)))
     print('Private game module:',a.output)
 if __name__=='__main__':main()

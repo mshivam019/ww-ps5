@@ -1,3 +1,4 @@
+#include "guest_addr.h"
 // Frame interpolation of effects. See interp.cpp for the pass structure: logic pass (logic
 // N -> N+1, everything drawn halfway) and hold pass (no logic, everything drawn at N+1). In true 60
 // (true60.cpp) the full passes are the logic passes and the half passes the hold passes for every
@@ -104,7 +105,9 @@ int trace_left(int part) {
 // +0xEC its scale (global = local * scale + offset).
 constexpr uint32_t kMgrGroups = 0x50, kEmtrPtcls = 0x1AC, kEmtrChildren = 0x1B8;
 constexpr uint32_t kPtclAge = 0x78, kPtclVel = 0x34;
-constexpr uint32_t kEmtrInfo = 0x104B5730, kInfoCenter = 0xE0, kInfoScale = 0xEC;
+const GuestAddress kEmtrInfo{0x104B5730, false};
+constexpr uint32_t kInfoCenter = 0xE0;
+constexpr uint32_t kInfoScale = 0xEC;
 constexpr int kPW = 12;  // words per particle state
 constexpr uint32_t kPtclWord[kPW] = {0x28, 0x2C, 0x30, 0x9C, 0xA0, 0x8C, 0x90, 0x94, 0xAC, 0xB8, 0xBC, 0xC0};
 enum { kWPos = 0, kWSize = 3, kWAxis = 5, kWAlpha = 8, kWPrm = 9, kWEnv = 10, kWRot = 11 };
@@ -216,7 +219,7 @@ struct PtclTrace {
 // in its time block (*(this+0): +0 frame (after wrap/clamp), +4 start, +8 end, +0x10 the frame
 // mapping function: 027DA9E8 loops, 027DAAA0 clamps) and caches the frame at this+0x28. btk/brk
 // entry and many actors call it from Draw on every pass.
-constexpr uint32_t kLoopFn = 0x027DA9E8;
+const GuestAddress kLoopFn{0x027DA9E8, true};
 struct AnmRec {
     uint32_t ts = 0;
     float frame = 0;
@@ -285,7 +288,7 @@ bool plausible(float v) { return v == 0.0f || (std::fabs(v) > 1e-12f && std::fab
 // (slots at +0x18F0C, 0x38 apart), trees s16 +4/+6 (+0x2A9C, 0x84 apart), flowers s16 +4
 // (+0x35BC, 0x38 apart). On logic passes the slots are drawn halfway between the previous step's
 // and this step's values; the exact ones are back for the hold pass.
-constexpr uint32_t kCounterTimer = 0x101FF560;
+const GuestAddress kCounterTimer{0x101FF560, false};
 struct SwayKind {
     uint32_t base, stride;
     int fields;
@@ -347,7 +350,7 @@ struct WoodRec {
 // of effect records in a packet that g_env_light (10475A68) points to; WWHD's packets keep the
 // GameCube records (the J3DPacket base grew). On logic passes every float field of every record
 // that did not respawn this step (same status byte, small position change) is drawn halfway.
-constexpr uint32_t kEnvLight = 0x10475A68;
+const GuestAddress kEnvLight{0x10475A68, false};
 struct KankyoKind {
     const char* name;
     uint32_t env_off, base, stride;
@@ -939,11 +942,11 @@ static void rnd_call(Cpu* c, char fn, void (*orig)(Cpu*)) {
         for (int k = 0; k < 10 && sp >= 0x10000000; k++) { sp = ld32(sp); if (sp < 0x10000000) break; fprintf(lf, " %08X", ld32(sp + 4)); }
         fprintf(lf, "\n");
     }
-    if (lf && !depth && (c->lr == 0x025616CCu || getenv("WWHD_RND_REGS_ALL")))
+    if (lf && !depth && (c->lr == GC(0x025616CCu) || getenv("WWHD_RND_REGS_ALL")))
         fprintf(lf, "REGS %08X %08X %08X %08X %08X %08X %08X L %08X %08X %08X %08X %08X\n", c->r[24], c->r[26], c->r[27], c->r[28], c->r[29], c->r[30], c->r[31],
                 ld32(c->r[24] + 0x14), ld32(c->r[24] + 0x18), ld32(c->r[24] + 0x1C), ld32(c->r[24] + 0x28), ld32(c->r[24] + 0x2C));
     if (lf && !depth) fprintf(lf, "%llu %d %d %c %08X %08X\n", (unsigned long long)interp::logic_steps(), (int)interp::hold_pass(),
-                               (int)interp::in_execute(), fn, c->lr, ld32(0x101FF9D4));
+                               (int)interp::in_execute(), fn, c->lr, ld32(GD(0x101FF9D4)));
     if (!on(8) || interp::in_execute() || depth) {
         orig(c);
         return;
@@ -969,10 +972,10 @@ static void rnd_call(Cpu* c, char fn, void (*orig)(Cpu*)) {
         uint32_t seeds[3];
         bool keep = true60::enabled();
         if (keep)
-            for (int k = 0; k < 3; k++) seeds[k] = ld32(0x101FF9D4 + 4 * k);
+            for (int k = 0; k < 3; k++) seeds[k] = ld32(GD(0x101FF9D4) + 4 * k);
         orig(c);
         if (keep)
-            for (int k = 0; k < 3; k++) st32(0x101FF9D4 + 4 * k, seeds[k]);
+            for (int k = 0; k < 3; k++) st32(GD(0x101FF9D4) + 4 * k, seeds[k]);
         return;
     }
     RndRec& r = g_rnd_logic;
@@ -1057,7 +1060,7 @@ extern "C" void hook_0246BD4C(Cpu* c) {
 
 // PSMTXTrans(m, x, y, z): the sea's scroll translation, half a step back on halfway frames
 extern "C" void hook_028E93CC(Cpu* c) {
-    if (g_sea_scroll_half && c->lr == 0x0246C958) {
+    if (g_sea_scroll_half && c->lr == GC(0x0246C958)) {
         static int tr = trace_left(3);
         double y = c->f[2].ps0 - 0.5 / 300.0;
         if (tr) {

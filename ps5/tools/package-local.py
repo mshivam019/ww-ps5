@@ -5,12 +5,12 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+from game_build import identify_game
 import subprocess
 import sys
 from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 TITLE = 'PPSA99641'
-RPX_SHA = 'c4f0ab300542e0bfc462696850534e71db2ad02288a7eb55e5a4cd4062f16153'
 def sha(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
@@ -20,7 +20,7 @@ def validate(title):
             raise ValueError(f'Missing {name}')
     if json.loads((title/'sce_sys/param.json').read_text())['titleId'] != TITLE:
         raise ValueError('Wrong title ID')
-    if sha(title/'game/code/cking.rpx') != RPX_SHA:
+    if identify_game(title/'game') is None:
         raise ValueError('Unsupported RPX')
     files = []
     for path in sorted(title.rglob('*')):
@@ -49,8 +49,7 @@ def main():
         p.error('--game and --vulkan are required when staging')
     if a.output.exists():
         raise ValueError('Output exists; choose a new path')
-    if sha(a.game/'code/cking.rpx') != RPX_SHA:
-        raise ValueError('Unsupported RPX')
+    build = identify_game(a.game)
     a.output.mkdir(parents=True)
     shutil.copy2(ROOT/'build/native-game/eboot.bin', a.output/'eboot.bin')
     shutil.copytree(ROOT/'ps5/sce_sys', a.output/'sce_sys')
@@ -61,7 +60,7 @@ def main():
         image.convert('RGB').resize((512,512), Image.Resampling.LANCZOS).save(a.output/'sce_sys/icon0.png')
     (a.output/'user/save').mkdir(parents=True)
     (a.output/'user/captures').mkdir()
-    if not a.without_ps_prompts:
+    if not a.without_ps_prompts and build.name == 'USA':
         command = [sys.executable, str(ROOT/'ps5/tools/prepare-ps-prompts.py'), '--title', str(a.output)]
         if a.ps_prompts_archive:
             command += ['--archive', str(a.ps_prompts_archive)]

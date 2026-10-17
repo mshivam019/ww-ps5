@@ -20,6 +20,7 @@ def main():
     work = ROOT / 'build/native-game'; work.mkdir(parents=True, exist_ok=True)
     run(sdk / 'bin/prospero-clang++', '-std=c++20', '-O2', '-I', args.sdl_source.resolve() / 'include',
         '-c', ROOT / 'ps5/main.cpp', '-o', work / 'main.o')
+    run(sdk / 'bin/prospero-clang++', '-std=c++20', '-O2', '-c', ROOT / 'ps5/storage.cpp', '-o', work / 'storage.o')
     run(sdk / 'bin/prospero-clang', '-std=c11', '-O2', '-c', ROOT / 'ps5/native/platform.c',
         '-o', work / 'platform.o')
     build = ROOT / 'build/ps5-runtime'
@@ -29,7 +30,7 @@ def main():
     dependencies = sorted(p for p in build.rglob('*.a')
                           if p != runtime and p.name not in {'libz.a', 'libzlibstatic.a', 'libzlib.a'})
     run('bash', ROOT / 'ps5/tools/link-game.sh', work, vulkan, sdk,
-        work / 'main.o', work / 'platform.o', '--whole-archive', runtime, '--no-whole-archive',
+        work / 'main.o', work / 'platform.o', work / 'storage.o', '--whole-archive', runtime, '--no-whole-archive',
         '--start-group', *dependencies, sdl / 'libSDL3.a', '--end-group')
     print(work / 'eboot.bin')
 if __name__ == '__main__': main()

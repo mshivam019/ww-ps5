@@ -392,6 +392,7 @@ Shader* translate(const uint32_t* regs, bool vertex, LatteFetchShader* fetch, ui
     auto owned = std::make_unique<Shader>();
     Shader* shader = owned.get();
     shader->key = key; shader->vertex = vertex;
+    shader->kind = gfx::program_kind(ppc_ptr(address), size, vertex);
     shaders.emplace(key, std::move(owned));
     remember(shader);
     if (!g_renderer || g_renderer->GetType() != RendererAPI::Vulkan) {

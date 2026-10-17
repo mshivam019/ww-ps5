@@ -1489,7 +1489,8 @@ ImDrawData* frame(float pw, float ph, void (*renderer_init)()) {
         ImGui::Begin("Wind Waker HD - Game setup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
         ImGui::TextWrapped("%s", setup_message.c_str());
         ImGui::Spacing();
-        ImGui::TextWrapped("Run the matching setup on your computer using your own USA Wii U version 0 dump. Copy its game folder into PPSA99641, then relaunch.");
+        ImGui::TextWrapped("Run the matching setup on your computer using your own USA or European Wii U version 0 dump. Copy its game folder to the location below, then relaunch.");
+        ImGui::TextWrapped("Game folder: %s", getenv("WWHD_PS5_GAME_LOCATION") ? getenv("WWHD_PS5_GAME_LOCATION") : "/data/wwhd/PPSA99641/game");
         ImGui::Spacing();
         ImGui::TextWrapped("Press Cross to return to the PS5 home screen.");
         ImGui::End();

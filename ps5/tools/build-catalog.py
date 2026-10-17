@@ -35,10 +35,11 @@ def main():
     run(sys.executable,ROOT/'ps5/tools/module-support.py','--output',gen,'--runtime',reference,'--nm',a.sdk/'bin/llvm-nm')
     configure(build,gen,a,True)
     run(a.sdk/'bin/prospero-clang++','-std=c++20','-O2','-I',a.sdl_source/'include','-c',ROOT/'ps5/main.cpp','-o',work/'main.o')
+    run(a.sdk/'bin/prospero-clang++','-std=c++20','-O2','-c',ROOT/'ps5/storage.cpp','-o',work/'storage.o')
     run(a.sdk/'bin/prospero-clang','-std=c11','-O2','-c',ROOT/'ps5/native/platform.c','-o',work/'platform.o')
     runtime=build/'libwwhd.a'
     deps=sorted(p for p in build.rglob('*.a') if p!=runtime and p.name not in {'libz.a','libzlibstatic.a','libzlib.a'})
-    run('bash',ROOT/'ps5/tools/link-game.sh',work,a.vulkan,a.sdk,work/'main.o',work/'platform.o',
+    run('bash',ROOT/'ps5/tools/link-game.sh',work,a.vulkan,a.sdk,work/'main.o',work/'platform.o',work/'storage.o',
         '--whole-archive',runtime,'--no-whole-archive','--start-group',*deps,a.sdl_build/'libSDL3.a','--end-group')
     (work/'build.json').write_text(json.dumps({'game_independent':True,'console_tested':False,'executable':str(work/'eboot.bin')},indent=2)+'\n')
     print('Catalog app built; console validation is still required:',work/'eboot.bin')

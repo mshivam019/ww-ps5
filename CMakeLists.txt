@@ -377,3 +377,9 @@ if(WWHD_SDL_HOST)
   add_test(NAME sdl_mouse COMMAND mouse_sdl_test)
   add_test(NAME host_sleep COMMAND sleep_test)
 endif()
+
+# Region identity defaults for host tests that link runtime components directly.
+target_sources(mod_package_test PRIVATE runtime/src/guest_addr_identity.c)
+target_sources(mod_cemu_test PRIVATE runtime/src/guest_addr_identity.c)
+target_include_directories(mod_package_test PRIVATE runtime/include)
+target_include_directories(mod_cemu_test PRIVATE runtime/include)

@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from game_build import identify_game
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,8 +29,7 @@ def main():
     if a.jobs < 1: p.error('--jobs must be positive')
     if a.output.exists(): p.error('--output must be a new directory')
     game = a.game.resolve()
-    if hashlib.sha256((game/'code/cking.rpx').read_bytes()).hexdigest() != 'c4f0ab300542e0bfc462696850534e71db2ad02288a7eb55e5a4cd4062f16153':
-        p.error('Only the USA version 0 RPX is supported')
+    identify_game(game)
     if a.setup:
         cmd = [sys.executable, ROOT/'ps5/tools/setup-deps.py', '--vulkan-dir', a.vulkan]
         if a.vulkan == ROOT/'.deps/src/vulkan': cmd = cmd[:-2]
